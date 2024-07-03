@@ -2,12 +2,12 @@ package xchg
 
 import (
 	"crypto/rand"
-	"crypto/rsa"
-	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"log"
 	"time"
+
+	"github.com/xchgn/xchg/utils"
 )
 
 const (
@@ -35,12 +35,12 @@ func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte) (response []byt
 			response = prepareResponseError(errors.New(ERR_XCHG_SRV_CONN_WRONG_SESSION))
 			return
 		}
-		data, err = DecryptAESGCM(data, session.aesKey)
+		data, err = utils.DecryptAESGCM(data, session.aesKey)
 		if err != nil {
 			response = prepareResponseError(errors.New(ERR_XCHG_SRV_CONN_DECR + ":" + err.Error()))
 			return
 		}
-		data, err = UnpackBytes(data)
+		data, err = utils.UnpackBytes(data)
 		if err != nil {
 			response = prepareResponseError(errors.New(ERR_XCHG_SRV_CONN_UNPACK + ":" + err.Error()))
 			return
@@ -117,8 +117,8 @@ func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte) (response []byt
 	}
 
 	if encryped {
-		response = PackBytes(response)
-		response, err = EncryptAESGCM(response, session.aesKey)
+		response = utils.PackBytes(response)
+		response, err = utils.EncryptAESGCM(response, session.aesKey)
 		if err != nil {
 			return
 		}
@@ -140,7 +140,7 @@ func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error
 	}
 
 	remotePublicKeyBS := functionParameter[4 : 4+remotePublicKeyBSLen]
-	remotePublicKey, err := RSAPublicKeyFromDer(remotePublicKeyBS)
+	remotePublicKey, err := utils.PublicKeyFromDer(remotePublicKeyBS)
 	if err != nil {
 		err = errors.New(INTERNAL_ERROR)
 		return
@@ -149,7 +149,7 @@ func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error
 	encryptedAuthFrame := functionParameter[4+remotePublicKeyBSLen:]
 
 	var parameter []byte
-	parameter, err = rsa.DecryptOAEP(sha256.New(), rand.Reader, c.privateKey, encryptedAuthFrame, nil)
+	parameter, err = utils.DecryptBytesWithPrivateKey(c.privateKey, encryptedAuthFrame)
 	if err != nil {
 		err = errors.New(INTERNAL_ERROR)
 		return
@@ -188,7 +188,7 @@ func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error
 	binary.LittleEndian.PutUint64(response, sessionId)
 	copy(response[8:], session.aesKey)
 
-	response, err = rsa.EncryptOAEP(sha256.New(), rand.Reader, remotePublicKey, response, nil)
+	response, err = utils.EncryptBytesWithPublicKey(remotePublicKey, response)
 
 	c.mtx.Unlock()
 

@@ -1,7 +1,7 @@
 package xchg_samples
 
 import (
-	"crypto/rsa"
+	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,7 +16,7 @@ type SimpleServer struct {
 	defaultResponse  []byte
 }
 
-func NewSimpleServer(privateKey *rsa.PrivateKey) *SimpleServer {
+func NewSimpleServer(privateKey *ecdsa.PrivateKey) *SimpleServer {
 	var c SimpleServer
 	c.serverConnection = xchg.NewPeer(privateKey, xchg.NewDefaultLogger())
 	c.serverConnection.SetProcessor(&c)

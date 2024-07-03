@@ -219,8 +219,7 @@ func (c *Network) GetNodesAddressesByAddress(address string) []string {
 func (c *Network) GetLocalNodes() []string {
 	addresses := make([]string, 0)
 
-	addresses = append(addresses, "localhost:42001")
-	addresses = append(addresses, "localhost:42002")
+	addresses = append(addresses, "localhost:8084")
 
 	return addresses
 }

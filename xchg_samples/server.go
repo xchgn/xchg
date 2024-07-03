@@ -1,20 +1,22 @@
 package xchg_samples
 
 import (
-	"crypto/rsa"
+	"crypto/ecdsa"
 	"errors"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/xchgn/xchg/utils"
 	"github.com/xchgn/xchg/xchg"
 )
 
 type Server struct {
 	serverConnection *xchg.Peer
-	privateKey       *rsa.PrivateKey
+	privateKey       *ecdsa.PrivateKey
 	accessKey        string
 	processor        func(function string, parameter []byte) (response []byte, err error)
 }
 
-func StartServer(privateKey *rsa.PrivateKey, accessKey string, processor func(function string, parameter []byte) (response []byte, err error)) *Server {
+func StartServer(privateKey *ecdsa.PrivateKey, accessKey string, processor func(function string, parameter []byte) (response []byte, err error)) *Server {
 	var c Server
 	c.privateKey = privateKey
 	c.accessKey = accessKey
@@ -26,14 +28,14 @@ func StartServer(privateKey *rsa.PrivateKey, accessKey string, processor func(fu
 }
 
 func StartServerFast(accessKey string, processor func(function string, parameter []byte) (response []byte, err error)) *Server {
-	privateKey, _ := xchg.GenerateRSAKey()
+	privateKey, _ := utils.GeneratePrivateKey()
 	s := StartServer(privateKey, accessKey, processor)
 	s.privateKey = privateKey
 	return s
 }
 
-func (c *Server) Address() string {
-	return xchg.AddressForPublicKey(&c.privateKey.PublicKey)
+func (c *Server) Address() common.Address {
+	return utils.AddressForPublicKey(&c.privateKey.PublicKey)
 }
 
 func (c *Server) Stop() {

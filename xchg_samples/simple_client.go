@@ -3,15 +3,16 @@ package xchg_samples
 import (
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/xchgn/xchg/xchg"
 )
 
 type SimpleClient struct {
-	address string
+	address common.Address
 	client  *xchg.Peer
 }
 
-func NewSimpleClient(address string) *SimpleClient {
+func NewSimpleClient(address common.Address) *SimpleClient {
 	var c SimpleClient
 	c.address = address
 	c.client = xchg.NewPeer(nil, xchg.NewDefaultLogger())

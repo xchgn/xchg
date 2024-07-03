@@ -153,6 +153,7 @@ func (c *HttpServer) processR(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *HttpServer) processW(w http.ResponseWriter, r *http.Request) {
+	//fmt.Println("processW")
 	c.server.DeclareHttpRequestW()
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -179,9 +180,10 @@ func (c *HttpServer) processW(w http.ResponseWriter, r *http.Request) {
 
 	offset := 0
 	for offset < len(dataBS) {
-		if offset+128 <= len(dataBS) {
+		if offset+69 <= len(dataBS) {
 			frameLen := int(binary.LittleEndian.Uint32(dataBS[offset:]))
 			if offset+frameLen <= len(dataBS) {
+				//fmt.Println("Router Write")
 				c.server.Put(dataBS[offset : offset+frameLen])
 				if err != nil {
 					return

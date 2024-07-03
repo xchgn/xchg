@@ -2,22 +2,24 @@ package xchg
 
 import (
 	"bytes"
-	"crypto/rsa"
-	"encoding/base32"
+	"crypto/ecdsa"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"mime/multipart"
 	"net"
 	"net/http"
 	"net/http/cookiejar"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xchgn/xchg/router"
+	"github.com/xchgn/xchg/utils"
 )
 
 type PeerTransport interface {
@@ -30,12 +32,12 @@ type Logger interface {
 }
 
 type Peer struct {
-	mtx          sync.Mutex
-	privateKey   *rsa.PrivateKey
-	localAddress string
-	started      bool
-	stopping     bool
-	network      *Network
+	mtx        sync.Mutex
+	privateKey *ecdsa.PrivateKey
+	//localAddress string
+	started  bool
+	stopping bool
+	network  *Network
 
 	httpClient     *http.Client
 	httpClientLong *http.Client
@@ -99,7 +101,7 @@ const (
 	PEER_UDP_END_PORT   = 42500
 )
 
-func NewPeer(privateKey *rsa.PrivateKey, logger Logger) *Peer {
+func NewPeer(privateKey *ecdsa.PrivateKey, logger Logger) *Peer {
 	var c Peer
 	c.logger = logger
 	c.remotePeers = make(map[string]*RemotePeer)
@@ -117,9 +119,9 @@ func NewPeer(privateKey *rsa.PrivateKey, logger Logger) *Peer {
 
 	c.privateKey = privateKey
 	if c.privateKey == nil {
-		c.privateKey, _ = GenerateRSAKey()
+		c.privateKey, _ = utils.GeneratePrivateKey()
 	}
-	c.localAddress = AddressForPublicKey(&c.privateKey.PublicKey)
+	//c.localAddress = AddressForPublicKey(&c.privateKey.PublicKey)
 
 	{
 		tr := &http.Transport{}
@@ -151,7 +153,7 @@ func (c *Peer) Start(enableLocalRouter bool) (err error) {
 	}
 	c.mtx.Unlock()
 
-	c.localAddressBS = AddressBSForPublicKey(&c.privateKey.PublicKey)
+	c.localAddressBS, _ = utils.AddressBSForPublicKey(&c.privateKey.PublicKey)
 
 	c.updateHttpPeers()
 
@@ -160,14 +162,8 @@ func (c *Peer) Start(enableLocalRouter bool) (err error) {
 		c.router1 = router.NewRouter()
 		c.router1.Start()
 
-		c.router2 = router.NewRouter()
-		c.router2.Start()
-
 		c.httpServer1 = router.NewHttpServer()
-		c.httpServer1.Start(c.router1, 42001)
-
-		c.httpServer2 = router.NewHttpServer()
-		c.httpServer2.Start(c.router1, 42002)
+		c.httpServer1.Start(c.router1, 8084)
 	}
 
 	go c.thWork()
@@ -177,19 +173,6 @@ func (c *Peer) Start(enableLocalRouter bool) (err error) {
 
 func (c *Peer) updateHttpPeers() {
 	return
-	c.logger.Println("Peer::updateHttpPeers")
-
-	network, _ := NetworkContainerLoadFromInternet()
-	c.logger.Println("Network container", network.Name)
-
-	c.mtx.Lock()
-	if network != nil {
-		if network.Timestamp > c.network.Timestamp {
-			c.network = network
-			c.logger.Println("Peer::updateHttpPeers", "new network detected", network.Name)
-		}
-	}
-	c.mtx.Unlock()
 }
 
 func (c *Peer) Stop() (err error) {
@@ -398,10 +381,10 @@ func (c *Peer) getFramesFromRouter(router string) {
 		binary.LittleEndian.PutUint64(getMessageRequest[8:], 1024*1024)
 		copy(getMessageRequest[16:], c.localAddressBS)
 
-		// fmt.Println("GETTING from", router)
+		//fmt.Println("GETTING from", router)
 		res, err := c.httpCall(c.httpClientLong, router, "r", getMessageRequest)
 		if err != nil {
-			//fmt.Println("HTTP Error: ", err)
+			fmt.Println("HTTP Error: ", err)
 			return
 		}
 		if len(res) >= 8 {
@@ -420,7 +403,7 @@ func (c *Peer) getFramesFromRouter(router string) {
 			framesCount := 0
 
 			for offset < len(res) {
-				if offset+128 <= len(res) {
+				if offset+69 <= len(res) {
 					frameLen := int(binary.LittleEndian.Uint32(res[offset:]))
 					if offset+frameLen <= len(res) {
 						framesCount++
@@ -455,15 +438,15 @@ func (c *Peer) getFramesFromInternet() {
 		return
 	}
 
-	routers := network.GetNodesAddressesByAddress(c.localAddress)
+	routers := network.GetNodesAddressesByAddress(crypto.PubkeyToAddress(c.privateKey.PublicKey).Hex())
 	for _, router := range routers {
 		c.getFramesFromRouter(router)
 	}
 }
 
 func (c *Peer) send(frame []byte, onlyToLocalRouter bool) {
-	addr := "#" + strings.ToLower(base32.StdEncoding.EncodeToString(frame[70:70+30]))
-	addrs := c.network.GetNodesAddressesByAddress(addr)
+	//addr := "#" + strings.ToLower(base32.StdEncoding.EncodeToString(frame[70:70+30]))
+	addrs := c.network.GetNodesAddressesByAddress("")
 	if onlyToLocalRouter {
 		addrs = c.network.GetLocalNodes()
 	}
@@ -517,12 +500,12 @@ func (c *Peer) Post(httpClient *http.Client, url, contentType string, body io.Re
 	return httpClient.Do(req)
 }
 
-func (c *Peer) Call(remoteAddress string, authData string, function string, data []byte, timeout time.Duration) (result []byte, err error) {
+func (c *Peer) Call(remoteAddress common.Address, authData string, function string, data []byte, timeout time.Duration) (result []byte, err error) {
 	c.mtx.Lock()
-	remotePeer, remotePeerOk := c.remotePeers[remoteAddress]
+	remotePeer, remotePeerOk := c.remotePeers[remoteAddress.Hex()]
 	if !remotePeerOk || remotePeer == nil {
 		remotePeer = NewRemotePeer(remoteAddress, authData, c.privateKey)
-		c.remotePeers[remoteAddress] = remotePeer
+		c.remotePeers[remoteAddress.Hex()] = remotePeer
 	}
 	network := c.network
 	c.mtx.Unlock()

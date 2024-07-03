@@ -1,16 +1,14 @@
 package router
 
 import (
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/base32"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"sort"
-	"strings"
 	"sync"
 	"time"
+
+	"github.com/xchgn/xchg/utils"
 )
 
 const (
@@ -226,15 +224,15 @@ func (c *Router) Put(frame []byte) {
 	var ok bool
 	var addressStorage *Storage
 
-	addressDestBS := frame[70:100]
-	addressDest := "#" + strings.ToLower(base32.StdEncoding.EncodeToString(addressDestBS))
-	//fmt.Println("<FRAME to ", addressDest, frame[8])
+	addressDestBS := frame[49:69]
+	addressDest, _ := utils.BytesToAddress(addressDestBS)
+	//fmt.Println("Router::Put", addressDest.Hex())
 
 	c.mtx.Lock()
-	addressStorage, ok = c.addresses[addressDest]
+	addressStorage, ok = c.addresses[addressDest.Hex()]
 	if !ok || addressStorage == nil {
 		addressStorage = NewStorage()
-		c.addresses[addressDest] = addressStorage
+		c.addresses[addressDest.Hex()] = addressStorage
 	}
 	id := c.nextId
 	c.nextId++
@@ -257,12 +255,12 @@ func (c *Router) GetMessages(frame []byte) (response []byte, count int, err erro
 
 	afterId := binary.LittleEndian.Uint64(frame[0:])
 	maxSize := binary.LittleEndian.Uint64(frame[8:])
-	addressSrcBS := frame[16 : 16+30]
+	addressSrcBS := frame[16 : 16+20]
 
-	addressSrc := "#" + strings.ToLower(base32.StdEncoding.EncodeToString(addressSrcBS))
+	addressSrc, _ := utils.BytesToAddress(addressSrcBS)
 
 	c.mtx.Lock()
-	addressStorage, ok = c.addresses[addressSrc]
+	addressStorage, ok = c.addresses[addressSrc.Hex()]
 	c.mtx.Unlock()
 
 	if !ok || addressStorage == nil {
@@ -282,11 +280,6 @@ func (c *Router) GetMessages(frame []byte) (response []byte, count int, err erro
 
 	c.stat.FramesOut += count
 	c.stat.BytesOut += len(msgData)
-	return
-}
-
-func RSAPublicKeyFromDer(publicKeyDer []byte) (publicKey *rsa.PublicKey, err error) {
-	publicKey, err = x509.ParsePKCS1PublicKey(publicKeyDer)
 	return
 }
 

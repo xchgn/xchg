@@ -2,10 +2,7 @@ package xchg
 
 import (
 	"bytes"
-	"crypto"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/sha256"
+	"crypto/ecdsa"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
@@ -18,6 +15,9 @@ import (
 	"net/http/cookiejar"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/xchgn/xchg/utils"
 )
 
 type RemotePeerTransport interface {
@@ -30,12 +30,12 @@ type RemotePeerTransport interface {
 
 type RemotePeer struct {
 	mtx           sync.Mutex
-	remoteAddress string
+	remoteAddress common.Address
 	authData      string
 	//network       *Network
 
-	privateKey      *rsa.PrivateKey
-	remotePublicKey *rsa.PublicKey
+	privateKey      *ecdsa.PrivateKey
+	remotePublicKey *ecdsa.PublicKey
 
 	nonces *Nonces
 
@@ -50,7 +50,7 @@ type RemotePeer struct {
 	nextTransactionId    uint64
 }
 
-func NewRemotePeer(remoteAddress string, authData string, privateKey *rsa.PrivateKey) *RemotePeer {
+func NewRemotePeer(remoteAddress common.Address, authData string, privateKey *ecdsa.PrivateKey) *RemotePeer {
 	var c RemotePeer
 	c.privateKey = privateKey
 	c.remoteAddress = remoteAddress
@@ -65,17 +65,15 @@ func NewRemotePeer(remoteAddress string, authData string, privateKey *rsa.Privat
 	c.httpClient = &http.Client{Transport: tr, Jar: jar}
 	c.httpClient.Timeout = 1 * time.Second
 
-	//c.remotePeerTransports = make([]RemotePeerTransport, 2)
-	//c.remotePeerTransports[0] = NewRemotePeerHttp()
 	return &c
 }
 
-func (c *RemotePeer) RemoteAddress() string {
+func (c *RemotePeer) RemoteAddress() common.Address {
 	return c.remoteAddress
 }
 
 func (c *RemotePeer) processFrame(routerHost string, frame []byte) {
-	frameType := frame[8]
+	frameType := frame[4]
 
 	switch frameType {
 	case FrameTypeResponse:
@@ -103,16 +101,13 @@ func (c *RemotePeer) processFrame11(routerHost string, frame []byte) {
 	c.mtx.Unlock()
 }
 
-func (c *RemotePeer) setConnectionPoint(routerHost string, publicKey *rsa.PublicKey, nonce []byte, signature []byte) {
+func (c *RemotePeer) setConnectionPoint(routerHost string, publicKey *ecdsa.PublicKey, nonce []byte, signature []byte) {
 	if !c.nonces.Check(nonce) {
 		return
 	}
-	nonceHash := sha256.Sum256(nonce)
-	err := rsa.VerifyPSS(publicKey, crypto.SHA256, nonceHash[:], signature, &rsa.PSSOptions{
-		SaltLength: 32,
-	})
-	if err != nil {
-		fmt.Println("VerifyPSS error", err)
+	verResult := utils.VerifySignature(publicKey, nonce, signature)
+	if !verResult {
+		fmt.Println("VerifyPSS error")
 		return
 	}
 
@@ -123,14 +118,15 @@ func (c *RemotePeer) setConnectionPoint(routerHost string, publicKey *rsa.Public
 }
 
 func (c *RemotePeer) Call(network *Network, function string, data []byte, timeout time.Duration) (result []byte, err error) {
+	//fmt.Println("RemotePeer::Call")
 	c.mtx.Lock()
 	sessionId := c.sessionId
 	c.mtx.Unlock()
 
 	// Check transport leyer
 	nonce := c.nonces.Next()
-	addressBS := []byte(c.remoteAddress)
-	transaction := NewTransaction(0x20, AddressForPublicKey(&c.privateKey.PublicKey), c.remoteAddress, 0, 0, 0, 0, nil)
+	addressBS := c.remoteAddress.Bytes()
+	transaction := NewTransaction(0x20, utils.AddressForPublicKey(&c.privateKey.PublicKey), c.remoteAddress, 0, 0, 0, 0, nil)
 	transaction.Data = make([]byte, 16+len(addressBS))
 	copy(transaction.Data[0:], nonce[:])
 	copy(transaction.Data[16:], addressBS)
@@ -156,6 +152,8 @@ func (c *RemotePeer) Call(network *Network, function string, data []byte, timeou
 }
 
 func (c *RemotePeer) auth(network *Network, timeout time.Duration) (err error) {
+	fmt.Println("RemotePeer::auth")
+
 	c.mtx.Lock()
 	if c.authProcessing {
 		c.mtx.Unlock()
@@ -174,6 +172,7 @@ func (c *RemotePeer) auth(network *Network, timeout time.Duration) (err error) {
 	var nonce []byte
 	nonce, err = c.regularCall(network, "/xchg-get-nonce", nil, nil, timeout)
 	if err != nil {
+		fmt.Println("get nonce error", err)
 		err = errors.New(ERR_XCHG_CL_CONN_AUTH_GET_NONCE + ":" + err.Error())
 		return
 	}
@@ -200,13 +199,13 @@ func (c *RemotePeer) auth(network *Network, timeout time.Duration) (err error) {
 		return
 	}
 
-	localPublicKeyBS := RSAPublicKeyToDer(&localPrivateKey.PublicKey)
+	localPublicKeyBS := utils.PublicKeyToDer(&localPrivateKey.PublicKey)
 
 	authFrameSecret := make([]byte, 16+len(authData))
 	copy(authFrameSecret[0:], nonce)
 	copy(authFrameSecret[16:], authData)
 	var encryptedAuthFrame []byte
-	encryptedAuthFrame, err = rsa.EncryptOAEP(sha256.New(), rand.Reader, remotePublicKey, []byte(authFrameSecret), nil)
+	encryptedAuthFrame, err = utils.EncryptBytesWithPublicKey(remotePublicKey, []byte(authFrameSecret))
 	if err != nil {
 		err = errors.New(ERR_XCHG_CL_CONN_AUTH_ENC + ":" + err.Error())
 		return
@@ -224,7 +223,7 @@ func (c *RemotePeer) auth(network *Network, timeout time.Duration) (err error) {
 		return
 	}
 
-	result, err = rsa.DecryptOAEP(sha256.New(), rand.Reader, localPrivateKey, result, nil)
+	result, err = utils.DecryptBytesWithPrivateKey(localPrivateKey, result)
 	if err != nil {
 		err = errors.New(ERR_XCHG_CL_CONN_AUTH_DECR + ":" + err.Error())
 		return
@@ -245,6 +244,8 @@ func (c *RemotePeer) auth(network *Network, timeout time.Duration) (err error) {
 }
 
 func (c *RemotePeer) regularCall(network *Network, function string, data []byte, aesKey []byte, timeout time.Duration) (result []byte, err error) {
+	//fmt.Println("RemotePeer::regularCall", function)
+
 	if len(function) > 255 {
 		err = errors.New(ERR_XCHG_CL_CONN_CALL_WRONG_FUNCTION_LEN)
 		return
@@ -277,8 +278,8 @@ func (c *RemotePeer) regularCall(network *Network, function string, data []byte,
 		frame[8] = byte(len(function))
 		copy(frame[9:], function)
 		copy(frame[9+len(function):], data)
-		frame = PackBytes(frame)
-		frame, err = EncryptAESGCM(frame, aesKey)
+		frame = utils.PackBytes(frame)
+		frame, err = utils.EncryptAESGCM(frame, aesKey)
 		if err != nil {
 			c.Reset()
 			err = errors.New(ERR_XCHG_CL_CONN_CALL_ENC + ":" + err.Error())
@@ -305,13 +306,13 @@ func (c *RemotePeer) regularCall(network *Network, function string, data []byte,
 	}
 
 	if encrypted {
-		result, err = DecryptAESGCM(result, aesKey)
+		result, err = utils.DecryptAESGCM(result, aesKey)
 		if err != nil {
 			c.Reset()
 			err = errors.New(ERR_XCHG_CL_CONN_CALL_DECRYPT + ":" + err.Error())
 			return
 		}
-		result, err = UnpackBytes(result)
+		result, err = utils.UnpackBytes(result)
 		if err != nil {
 			c.Reset()
 			err = errors.New(ERR_XCHG_CL_CONN_CALL_UNPACK + ":" + err.Error())
@@ -360,6 +361,8 @@ func (c *RemotePeer) reset() {
 }
 
 func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data []byte, timeout time.Duration, aesKeyOriginal []byte) (result []byte, err error) {
+	//fmt.Println("RemotePeer::executeTransaction")
+
 	// Get transaction ID
 	var transactionId uint64
 	c.mtx.Lock()
@@ -367,7 +370,7 @@ func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data
 	c.nextTransactionId++
 
 	// Create transaction
-	t := NewTransaction(FrameTypeCall, AddressForPublicKey(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, 0, len(data), data)
+	t := NewTransaction(FrameTypeCall, utils.AddressForPublicKey(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, 0, len(data), data)
 	c.outgoingTransactions[transactionId] = t
 	c.mtx.Unlock()
 
@@ -384,7 +387,7 @@ func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data
 			currentBlockSize = restDataLen
 		}
 
-		blockTransaction := NewTransaction(FrameTypeCall, AddressForPublicKey(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, offset, len(data), data[offset:offset+currentBlockSize])
+		blockTransaction := NewTransaction(FrameTypeCall, utils.AddressForPublicKey(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, offset, len(data), data[offset:offset+currentBlockSize])
 
 		err = c.Send(network, blockTransaction)
 		if err == nil {
@@ -462,13 +465,14 @@ func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data
 }
 
 func (c *RemotePeer) httpCall(routerHost string, function string, frame []byte) (result []byte, err error) {
+	//fmt.Println("RemotePeer::httpCall")
 	// Waiting for router host
 
 	if len(routerHost) == 0 {
 		return
 	}
 
-	if len(frame) < 128 {
+	if len(frame) < TransactionHeaderSize {
 		return
 	}
 
@@ -511,6 +515,8 @@ func (c *RemotePeer) Post(url, contentType string, body io.Reader, host string) 
 }
 
 func (c *RemotePeer) Send(network *Network, tr *Transaction) (err error) {
+	//fmt.Println("RemotePeer::Send", tr.TransactionId)
+
 	addrs := network.GetNodesAddressesByAddress(tr.DestAddressString())
 	bs := tr.Marshal()
 	for _, a := range addrs {

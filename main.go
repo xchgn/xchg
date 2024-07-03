@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/xchgn/xchg/xchg"
+	"github.com/xchgn/xchg/utils"
 	"github.com/xchgn/xchg/xchg_samples"
 )
 
@@ -13,11 +13,11 @@ func main() {
 	errs := 0
 
 	fn := func() {
-		serverPrivateKey, _ := xchg.GenerateRSAKey()
+		serverPrivateKey, _ := utils.GeneratePrivateKey()
 		server := xchg_samples.NewSimpleServer(serverPrivateKey)
 		server.Start()
 
-		serverAddress := xchg.AddressForPublicKey(&serverPrivateKey.PublicKey)
+		serverAddress := utils.AddressForPublicKey(&serverPrivateKey.PublicKey)
 		fmt.Println(serverAddress)
 		client := xchg_samples.NewSimpleClient(serverAddress)
 

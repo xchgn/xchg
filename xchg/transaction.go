@@ -1,34 +1,30 @@
 package xchg
 
 import (
-	"encoding/base32"
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"hash/crc32"
-	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/xchgn/xchg/utils"
 )
 
 type Transaction struct {
-	// Transport Header - 8 bytes
+	// Transport Header - 5 bytes
 	Length    uint32 // 0
-	CRC       uint32 // 4
-	FrameType byte   // 8
+	FrameType byte   // 4
 
-	// Call header - 32 bytes
-	TransactionId uint64
-	SessionId     uint64
-	Offset        uint32
-	TotalSize     uint32
+	// Call header - 24 bytes
+	TransactionId uint64 // 5
+	SessionId     uint64 // 13
+	Offset        uint32 // 21
+	TotalSize     uint32 // 25
 
-	// 30 bytes - Source Address
-	SrcAddress [AddressBytesSize]byte
-	// 30 bytes - Source Address
-	DestAddress [AddressBytesSize]byte
-
-	// 28 bytes
-	Appendix [28]byte
+	// 20 bytes - Source Address
+	SrcAddress [utils.AddressBytesSize]byte // 29
+	// 20 bytes - Source Address
+	DestAddress [utils.AddressBytesSize]byte // 49
 
 	// Data
 	Data []byte
@@ -45,16 +41,15 @@ type Transaction struct {
 }
 
 const (
-	TransactionHeaderSize = 128
+	TransactionHeaderSize = 69
 
 	FrameTypeCall     = byte(0x10)
 	FrameTypeResponse = byte(0x11)
 )
 
-func NewTransaction(frameType byte, srcAddress string, destAddress string, transactionId uint64, sessionId uint64, offset int, totalSize int, data []byte) *Transaction {
+func NewTransaction(frameType byte, srcAddress common.Address, destAddress common.Address, transactionId uint64, sessionId uint64, offset int, totalSize int, data []byte) *Transaction {
 	var c Transaction
 	c.Length = uint32(TransactionHeaderSize + len(data))
-	c.CRC = 0
 	c.FrameType = frameType
 
 	c.TransactionId = transactionId
@@ -62,23 +57,8 @@ func NewTransaction(frameType byte, srcAddress string, destAddress string, trans
 	c.Offset = uint32(offset)
 	c.TotalSize = uint32(totalSize)
 
-	if strings.HasPrefix(srcAddress, "#") {
-		srcAddress = srcAddress[1:]
-	}
-
-	if strings.HasPrefix(destAddress, "#") {
-		destAddress = destAddress[1:]
-	}
-
-	srcAddressBS, err := base32.StdEncoding.DecodeString(strings.ToUpper(srcAddress))
-	if err == nil && len(srcAddressBS) == 30 {
-		copy(c.SrcAddress[:], srcAddressBS)
-	}
-
-	destAddressBS, err := base32.StdEncoding.DecodeString(strings.ToUpper(destAddress))
-	if err == nil && len(destAddressBS) == 30 {
-		copy(c.DestAddress[:], destAddressBS)
-	}
+	copy(c.SrcAddress[:], srcAddress.Bytes())
+	copy(c.DestAddress[:], destAddress.Bytes())
 
 	c.Data = data
 
@@ -87,11 +67,13 @@ func NewTransaction(frameType byte, srcAddress string, destAddress string, trans
 }
 
 func (c *Transaction) SrcAddressString() string {
-	return "#" + base32.StdEncoding.EncodeToString(c.SrcAddress[:])
+	address, _ := utils.BytesToAddress(c.SrcAddress[:])
+	return address.Hex()
 }
 
 func (c *Transaction) DestAddressString() string {
-	return "#" + base32.StdEncoding.EncodeToString(c.DestAddress[:])
+	address, _ := utils.BytesToAddress(c.DestAddress[:])
+	return address.Hex()
 }
 
 func Parse(frame []byte) (tr *Transaction, err error) {
@@ -102,17 +84,15 @@ func Parse(frame []byte) (tr *Transaction, err error) {
 
 	tr = &Transaction{}
 	tr.Length = binary.LittleEndian.Uint32(frame[0:])
-	tr.CRC = binary.LittleEndian.Uint32(frame[4:])
-	tr.FrameType = frame[8]
+	tr.FrameType = frame[4]
 
-	tr.TransactionId = binary.LittleEndian.Uint64(frame[16:])
-	tr.SessionId = binary.LittleEndian.Uint64(frame[24:])
-	tr.Offset = binary.LittleEndian.Uint32(frame[32:])
-	tr.TotalSize = binary.LittleEndian.Uint32(frame[36:])
+	tr.TransactionId = binary.LittleEndian.Uint64(frame[5:])
+	tr.SessionId = binary.LittleEndian.Uint64(frame[13:])
+	tr.Offset = binary.LittleEndian.Uint32(frame[21:])
+	tr.TotalSize = binary.LittleEndian.Uint32(frame[25:])
 
-	copy(tr.SrcAddress[:], frame[40:])
-	copy(tr.DestAddress[:], frame[70:])
-	copy(tr.Appendix[:], frame[100:])
+	copy(tr.SrcAddress[:], frame[29:])
+	copy(tr.DestAddress[:], frame[49:])
 
 	tr.Data = make([]byte, len(frame)-TransactionHeaderSize)
 	copy(tr.Data, frame[TransactionHeaderSize:])
@@ -124,21 +104,17 @@ func (c *Transaction) Marshal() (result []byte) {
 	result = make([]byte, TransactionHeaderSize+len(c.Data))
 
 	binary.LittleEndian.PutUint32(result[0:], uint32(len(result))) // Length
-	binary.LittleEndian.PutUint32(result[4:], 0)                   // CRC
-	result[8] = c.FrameType
+	result[4] = c.FrameType
 
-	binary.LittleEndian.PutUint64(result[16:], c.TransactionId)
-	binary.LittleEndian.PutUint64(result[24:], c.SessionId)
-	binary.LittleEndian.PutUint32(result[32:], c.Offset)
-	binary.LittleEndian.PutUint32(result[36:], c.TotalSize)
+	binary.LittleEndian.PutUint64(result[5:], c.TransactionId)
+	binary.LittleEndian.PutUint64(result[13:], c.SessionId)
+	binary.LittleEndian.PutUint32(result[21:], c.Offset)
+	binary.LittleEndian.PutUint32(result[25:], c.TotalSize)
 
-	copy(result[40:], c.SrcAddress[:])
-	copy(result[70:], c.DestAddress[:])
-	copy(result[100:], c.Appendix[:])
+	copy(result[29:], c.SrcAddress[:])
+	copy(result[49:], c.DestAddress[:])
 
 	copy(result[TransactionHeaderSize:], c.Data)
-
-	binary.LittleEndian.PutUint32(result[4:], crc32.Checksum(result, crc32.IEEETable))
 
 	return
 }

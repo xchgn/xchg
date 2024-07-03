@@ -1,23 +1,19 @@
 package xchg
 
 import (
-	"crypto"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/sha256"
-	"encoding/base32"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
+
+	"github.com/xchgn/xchg/utils"
 )
 
 func (c *Peer) processFrame(routerHost string, frame []byte) (responseFrames []*Transaction) {
-	if len(frame) < 8 {
+	if len(frame) < TransactionHeaderSize {
 		return
 	}
 
-	frameType := frame[8]
+	frameType := frame[4]
 
 	// Call Request
 	if frameType == 0x10 {
@@ -77,10 +73,12 @@ func (c *Peer) processFrame10(routerHost string, frame []byte) (responseFrames [
 		}
 	}
 
+	srcAddr, _ := utils.BytesToAddress(transaction.SrcAddress[:])
+
 	var ok bool
 	incomingTransactionCode := fmt.Sprint(transaction.SrcAddress, "-", transaction.TransactionId)
 	if incomingTransaction, ok = c.incomingTransactions[incomingTransactionCode]; !ok {
-		incomingTransaction = NewTransaction(transaction.FrameType, AddressForPublicKey(&c.privateKey.PublicKey), string(transaction.SrcAddress[:]), transaction.TransactionId, transaction.SessionId, 0, int(transaction.TotalSize), make([]byte, 0))
+		incomingTransaction = NewTransaction(transaction.FrameType, utils.AddressForPublicKey(&c.privateKey.PublicKey), srcAddr, transaction.TransactionId, transaction.SessionId, 0, int(transaction.TotalSize), make([]byte, 0))
 		incomingTransaction.BeginDT = time.Now()
 		c.incomingTransactions[incomingTransactionCode] = incomingTransaction
 	}
@@ -98,12 +96,12 @@ func (c *Peer) processFrame10(routerHost string, frame []byte) (responseFrames [
 	delete(c.incomingTransactions, incomingTransactionCode)
 	c.mtx.Unlock()
 
-	srcAddress := "#" + base32.StdEncoding.EncodeToString(transaction.SrcAddress[:])
+	srcAddress, _ := utils.BytesToAddress(transaction.SrcAddress[:])
 
 	if processor != nil {
 		resp, dontSendResponse := c.onEdgeReceivedCall(incomingTransaction.SessionId, incomingTransaction.Data)
 		if !dontSendResponse {
-			trResponse := NewTransaction(0x11, AddressForPublicKey(&c.privateKey.PublicKey), srcAddress, incomingTransaction.TransactionId, incomingTransaction.SessionId, 0, len(resp), resp)
+			trResponse := NewTransaction(0x11, utils.AddressForPublicKey(&c.privateKey.PublicKey), srcAddress, incomingTransaction.TransactionId, incomingTransaction.SessionId, 0, len(resp), resp)
 
 			offset := 0
 			blockSize := 4 * 1024
@@ -114,7 +112,7 @@ func (c *Peer) processFrame10(routerHost string, frame []byte) (responseFrames [
 					currentBlockSize = restDataLen
 				}
 
-				blockTransaction := NewTransaction(0x11, AddressForPublicKey(&c.privateKey.PublicKey), srcAddress, trResponse.TransactionId, trResponse.SessionId, offset, len(resp), trResponse.Data[offset:offset+currentBlockSize])
+				blockTransaction := NewTransaction(0x11, utils.AddressForPublicKey(&c.privateKey.PublicKey), srcAddress, trResponse.TransactionId, trResponse.SessionId, offset, len(resp), trResponse.Data[offset:offset+currentBlockSize])
 				blockTransaction.Offset = uint32(offset)
 				blockTransaction.TotalSize = uint32(len(trResponse.Data))
 				blockTransaction.FromLocalNode = incomingTransaction.FromLocalNode
@@ -135,8 +133,9 @@ func (c *Peer) processFrame11(routerHost string, frame []byte) {
 	var remotePeer *RemotePeer
 	c.mtx.Lock()
 	for _, peer := range c.remotePeers {
-		srcAddress := "#" + strings.ToLower(base32.StdEncoding.EncodeToString(tr.SrcAddress[:]))
-		if peer.RemoteAddress() == srcAddress {
+
+		srcAddress, _ := utils.BytesToAddress(tr.SrcAddress[:])
+		if peer.RemoteAddress().Hex() == srcAddress.Hex() {
 			remotePeer = peer
 			break
 		}
@@ -152,9 +151,9 @@ func (c *Peer) processFrame20(frame []byte) (responseFrames []*Transaction) {
 
 	responseFrames = make([]*Transaction, 0)
 
-	c.mtx.Lock()
-	localAddress := AddressForPublicKey(&c.privateKey.PublicKey)
-	c.mtx.Unlock()
+	//c.mtx.Lock()
+	//localAddress := AddressForPublicKey(&c.privateKey.PublicKey)
+	//c.mtx.Unlock()
 
 	transaction, err := Parse(frame)
 	if err != nil {
@@ -164,27 +163,27 @@ func (c *Peer) processFrame20(frame []byte) (responseFrames []*Transaction) {
 	fmt.Println("20 received", transaction)
 
 	nonce := transaction.Data[:16]
-	nonceHash := sha256.Sum256(nonce)
 
-	requestedAddress := string(transaction.Data[16:])
-	if requestedAddress != localAddress {
-		return // This is not my address
+	requestedAddress := transaction.Data[16:]
+
+	for i := 0; i < len(requestedAddress); i++ { // TODO
+		if c.localAddressBS[i] != requestedAddress[i] {
+			return
+		}
 	}
 
 	// Send my public key
-	publicKeyBS := RSAPublicKeyToDer(&c.privateKey.PublicKey)
+	publicKeyBS := utils.PublicKeyToDer(&c.privateKey.PublicKey)
 
 	// And signature
-	signature, err := rsa.SignPSS(rand.Reader, c.privateKey, crypto.SHA256, nonceHash[:], &rsa.PSSOptions{
-		SaltLength: 32,
-	})
+	signature, err := utils.SignData(c.privateKey, nonce)
 	if err != nil {
 		return
 	}
 
-	srcAddress := "#" + base32.StdEncoding.EncodeToString(transaction.SrcAddress[:])
+	srcAddress, _ := utils.BytesToAddress(transaction.SrcAddress[:])
 
-	response := NewTransaction(0x21, AddressForPublicKey(&c.privateKey.PublicKey), srcAddress, 0, 0, 0, 0, nil)
+	response := NewTransaction(0x21, utils.AddressForPublicKey(&c.privateKey.PublicKey), srcAddress, 0, 0, 0, 0, nil)
 	response.Data = make([]byte, 16+256+len(publicKeyBS))
 	copy(response.Data[0:], nonce)
 	copy(response.Data[16:], signature)
@@ -206,18 +205,18 @@ func (c *Peer) processFrame21(routerHost string, frame []byte) {
 	}
 
 	receivedPublicKeyBS := transaction.Data[16+256:]
-	receivedPublicKey, err := RSAPublicKeyFromDer([]byte(receivedPublicKeyBS))
+	receivedPublicKey, err := utils.PublicKeyFromDer([]byte(receivedPublicKeyBS))
 	if err != nil {
 		return
 	}
 
-	receivedAddress := AddressForPublicKey(receivedPublicKey)
+	receivedAddress := utils.AddressForPublicKey(receivedPublicKey)
 
 	c.mtx.Lock()
 
 	for _, peer := range c.remotePeers {
 		if peer.RemoteAddress() == receivedAddress {
-			peer.setConnectionPoint(routerHost, receivedPublicKey, transaction.Data[0:16], transaction.Data[16:16+256])
+			peer.setConnectionPoint(routerHost, receivedPublicKey, transaction.Data[0:16], transaction.Data[16:16+65])
 			break
 		}
 	}
