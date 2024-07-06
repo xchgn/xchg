@@ -16,22 +16,19 @@ func (c *Peer) processFrame(routerHost string, frame []byte) (responseFrames []*
 
 	switch frameType {
 	case XchgFrameCallRequest:
-		responseFrames = c.processFrame10(routerHost, frame)
+		responseFrames = c.processFrameCallRequest(routerHost, frame)
 	case XchgFrameCallResponse:
-		c.processFrame11(routerHost, frame)
+		c.processFrameCallResponse(routerHost, frame)
 	case XchgFrameGetPublicKeyRequest:
-		responseFrames = c.processFrame20(frame)
+		responseFrames = c.processFrameGetPublicKeyRequest(frame)
 	case XchgFrameGetPublicKeyResponse:
-		c.processFrame21(routerHost, frame)
+		c.processFrameGetPublicKeyResponse(routerHost, frame)
 	}
 
 	return
 }
 
-// ----------------------------------------
-// Incoming Call - Server Role
-// ----------------------------------------
-func (c *Peer) processFrame10(routerHost string, frame []byte) (responseFrames []*Transaction) {
+func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (responseFrames []*Transaction) {
 	var processor ServerProcessor
 
 	_ = routerHost
@@ -105,7 +102,7 @@ func (c *Peer) processFrame10(routerHost string, frame []byte) (responseFrames [
 	return
 }
 
-func (c *Peer) processFrame11(routerHost string, frame []byte) {
+func (c *Peer) processFrameCallResponse(routerHost string, frame []byte) {
 	tr, err := Parse(frame)
 	if err != nil {
 		return
@@ -131,7 +128,7 @@ func (c *Peer) processFrame11(routerHost string, frame []byte) {
 // Get Public Key Request
 // This frame received by server
 // It converts the address to the public key
-func (c *Peer) processFrame20(frame []byte) (responseFrames []*Transaction) {
+func (c *Peer) processFrameGetPublicKeyRequest(frame []byte) (responseFrames []*Transaction) {
 	responseFrames = make([]*Transaction, 0)
 	transaction, err := Parse(frame)
 
@@ -139,15 +136,15 @@ func (c *Peer) processFrame20(frame []byte) (responseFrames []*Transaction) {
 	if err != nil {
 		return
 	}
-	if len(transaction.Data) != 20 {
+	if len(transaction.Data) != XchgAddressSize {
 		return
 	}
-	if len(c.localAddressBS) != 20 {
+	if len(c.localAddressBS) != XchgAddressSize {
 		return
 	}
 
 	// Compare requested address and local address
-	requestedAddress := transaction.Data[:20]
+	requestedAddress := transaction.Data[:XchgAddressSize]
 	for i := 0; i < 20; i++ {
 		if c.localAddressBS[i] != requestedAddress[i] {
 			return // It is not my address
@@ -157,19 +154,19 @@ func (c *Peer) processFrame20(frame []byte) (responseFrames []*Transaction) {
 	// Send Public Key
 	publicKeyBS := utils.PublicKeyToBytes(&c.privateKey.PublicKey)
 	srcAddress, _ := utils.BytesToAddress(transaction.SrcAddress[:])
-	response := NewTransaction(0x21, utils.PublicKeyToAddress(&c.privateKey.PublicKey), srcAddress, 0, 0, 0, 0, nil)
-	response.Data = make([]byte, 65)
+	response := NewTransaction(XchgFrameGetPublicKeyResponse, utils.PublicKeyToAddress(&c.privateKey.PublicKey), srcAddress, 0, 0, 0, 0, nil)
+	response.Data = make([]byte, XchgPublicKeySize)
 	copy(response.Data, publicKeyBS)
 	responseFrames = append(responseFrames, response)
 	return
 }
 
-func (c *Peer) processFrame21(routerHost string, frame []byte) {
+func (c *Peer) processFrameGetPublicKeyResponse(routerHost string, frame []byte) {
 	transaction, err := Parse(frame)
 	if err != nil {
 		return
 	}
-	if len(transaction.Data) != 65 {
+	if len(transaction.Data) != XchgPublicKeySize {
 		return
 	}
 	receivedPublicKeyBS := transaction.Data
