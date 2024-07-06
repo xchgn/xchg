@@ -14,28 +14,15 @@ func (c *Peer) processFrame(routerHost string, frame []byte) (responseFrames []*
 
 	frameType := frame[4]
 
-	// Call Request
-	if frameType == 0x10 {
+	switch frameType {
+	case XchgFrameCallRequest:
 		responseFrames = c.processFrame10(routerHost, frame)
-		return
-	}
-
-	// Call Response
-	if frameType == 0x11 {
+	case XchgFrameCallResponse:
 		c.processFrame11(routerHost, frame)
-		return
-	}
-
-	// ARP request
-	if frameType == 0x20 {
+	case XchgFrameGetPublicKeyRequest:
 		responseFrames = c.processFrame20(frame)
-		return
-	}
-
-	// ARP response
-	if frameType == 0x21 {
+	case XchgFrameGetPublicKeyResponse:
 		c.processFrame21(routerHost, frame)
-		return
 	}
 
 	return
