@@ -19,10 +19,6 @@ import (
 	"github.com/xchgn/xchg/utils"
 )
 
-const (
-	MaxFrameSize = 16 * 1024
-)
-
 type RemotePeerTransport interface {
 	Id() string
 	Check(frame20 *Transaction, network *Network, remotePublicKeyExists bool) error
@@ -201,10 +197,9 @@ func (c *RemotePeer) auth(network *Network, timeout time.Duration) (err error) {
 		return
 	}
 
-	authFrame := make([]byte, 4+len(localPublicKeyBS)+len(encryptedAuthFrame))
-	binary.LittleEndian.PutUint32(authFrame[0:], uint32(len(localPublicKeyBS)))
-	copy(authFrame[4:], localPublicKeyBS)
-	copy(authFrame[4+len(localPublicKeyBS):], encryptedAuthFrame)
+	authFrame := make([]byte, len(localPublicKeyBS)+len(encryptedAuthFrame))
+	copy(authFrame, localPublicKeyBS)
+	copy(authFrame[len(localPublicKeyBS):], encryptedAuthFrame)
 
 	var result []byte
 	result, err = c.regularCall(network, "/xchg-auth", authFrame, nil, timeout)
@@ -376,10 +371,9 @@ func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data
 	sentCount := 0
 	sendCounter := 0
 	offset := 0
-	blockSize := MaxFrameSize
 	for offset < len(data) {
 		sendCounter++
-		currentBlockSize := blockSize
+		currentBlockSize := XchgMaxFrameSize
 		restDataLen := len(data) - offset
 		if restDataLen < currentBlockSize {
 			currentBlockSize = restDataLen

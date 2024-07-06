@@ -90,7 +90,6 @@ func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte) (response []byt
 		switch function {
 		case "/xchg-get-nonce":
 			nonce := c.authNonces.Next()
-			//fmt.Println("xchg-get-nonce", nonce)
 			resp = nonce[:]
 		case "/xchg-auth":
 			resp, err = c.processAuth(functionParameter)
@@ -128,25 +127,19 @@ func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte) (response []byt
 }
 
 func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error) {
-	if len(functionParameter) < 4 {
+	if len(functionParameter) < XchgPublicKeySize {
 		err = errors.New(INTERNAL_ERROR)
 		return
 	}
 
-	remotePublicKeyBSLen := binary.LittleEndian.Uint32(functionParameter[0:])
-	if len(functionParameter) < 4+int(remotePublicKeyBSLen) {
-		err = errors.New(INTERNAL_ERROR)
-		return
-	}
-
-	remotePublicKeyBS := functionParameter[4 : 4+remotePublicKeyBSLen]
+	remotePublicKeyBS := functionParameter[:XchgPublicKeySize]
 	remotePublicKey, err := utils.BytesToPublicKey(remotePublicKeyBS)
 	if err != nil {
 		err = errors.New(INTERNAL_ERROR)
 		return
 	}
 
-	encryptedAuthFrame := functionParameter[4+remotePublicKeyBSLen:]
+	encryptedAuthFrame := functionParameter[XchgPublicKeySize:]
 
 	var parameter []byte
 	parameter, err = utils.DecryptBytesWithPrivateKey(c.privateKey, encryptedAuthFrame)
@@ -155,18 +148,18 @@ func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error
 		return
 	}
 
-	if len(parameter) < 16 {
+	if len(parameter) < XchgNonceSize {
 		err = errors.New(INTERNAL_ERROR)
 		return
 	}
 
-	nonce := parameter[0:16]
+	nonce := parameter[0:XchgNonceSize]
 	if !c.authNonces.Check(nonce) {
 		err = errors.New(INTERNAL_ERROR)
 		return
 	}
 
-	authData := parameter[16:]
+	authData := parameter[XchgNonceSize:]
 	err = c.processor.ServerProcessorAuth(authData)
 	if err != nil {
 		return
@@ -179,12 +172,12 @@ func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error
 	session := &Session{}
 	session.id = sessionId
 	session.lastAccessDT = time.Now()
-	session.aesKey = make([]byte, 32)
+	session.aesKey = make([]byte, XchgAesKeySize)
 	session.snakeCounter = NewSnakeCounter(100, 0)
 	session.authData = authData
 	rand.Read(session.aesKey)
 	c.sessionsById[sessionId] = session
-	response = make([]byte, 8+32)
+	response = make([]byte, 8+XchgAesKeySize)
 	binary.LittleEndian.PutUint64(response, sessionId)
 	copy(response[8:], session.aesKey)
 
@@ -213,8 +206,6 @@ func (c *Peer) purgeSessions() {
 }
 
 func prepareResponseError(err error) []byte {
-	//fmt.Println("CALL ERROR:", err)
-
 	errBS := make([]byte, 0)
 	if err != nil {
 		errBS = []byte(err.Error())

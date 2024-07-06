@@ -44,7 +44,6 @@ func (c *Peer) processFrame(routerHost string, frame []byte) (responseFrames []*
 // ----------------------------------------
 // Incoming Call - Server Role
 // ----------------------------------------
-
 func (c *Peer) processFrame10(routerHost string, frame []byte) (responseFrames []*Transaction) {
 	var processor ServerProcessor
 
@@ -99,7 +98,7 @@ func (c *Peer) processFrame10(routerHost string, frame []byte) (responseFrames [
 			trResponse := NewTransaction(0x11, utils.PublicKeyToAddress(&c.privateKey.PublicKey), srcAddress, incomingTransaction.TransactionId, incomingTransaction.SessionId, 0, len(resp), resp)
 
 			offset := 0
-			blockSize := MaxFrameSize
+			blockSize := XchgMaxFrameSize
 			for offset < len(trResponse.Data) {
 				currentBlockSize := blockSize
 				restDataLen := len(trResponse.Data) - offset
@@ -126,6 +125,7 @@ func (c *Peer) processFrame11(routerHost string, frame []byte) {
 	}
 
 	var remotePeer *RemotePeer
+	// Find the peer in local remote peers collection
 	c.mtx.Lock()
 	for _, peer := range c.remotePeers {
 
@@ -142,6 +142,8 @@ func (c *Peer) processFrame11(routerHost string, frame []byte) {
 }
 
 // Get Public Key Request
+// This frame received by server
+// It converts the address to the public key
 func (c *Peer) processFrame20(frame []byte) (responseFrames []*Transaction) {
 	responseFrames = make([]*Transaction, 0)
 	transaction, err := Parse(frame)
@@ -157,7 +159,7 @@ func (c *Peer) processFrame20(frame []byte) (responseFrames []*Transaction) {
 		return
 	}
 
-	//nonce := transaction.Data[:16]
+	// Compare requested address and local address
 	requestedAddress := transaction.Data[:20]
 	for i := 0; i < 20; i++ {
 		if c.localAddressBS[i] != requestedAddress[i] {
@@ -168,7 +170,6 @@ func (c *Peer) processFrame20(frame []byte) (responseFrames []*Transaction) {
 	// Send Public Key
 	publicKeyBS := utils.PublicKeyToBytes(&c.privateKey.PublicKey)
 	srcAddress, _ := utils.BytesToAddress(transaction.SrcAddress[:])
-
 	response := NewTransaction(0x21, utils.PublicKeyToAddress(&c.privateKey.PublicKey), srcAddress, 0, 0, 0, 0, nil)
 	response.Data = make([]byte, 65)
 	copy(response.Data, publicKeyBS)
@@ -177,7 +178,6 @@ func (c *Peer) processFrame20(frame []byte) (responseFrames []*Transaction) {
 }
 
 func (c *Peer) processFrame21(routerHost string, frame []byte) {
-
 	transaction, err := Parse(frame)
 	if err != nil {
 		return
