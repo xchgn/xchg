@@ -22,10 +22,15 @@ func main() {
 		client := xchg_samples.NewSimpleClient(serverAddress)
 
 		for {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(1000 * time.Millisecond)
 			var err error
+			fmt.Println("=============== START")
 			v, err := client.Version()
-			fmt.Println("Result", v)
+			if err == nil {
+				fmt.Println("=============== RESULT", v)
+			} else {
+				fmt.Println("=============== RESULT", err)
+			}
 			if err != nil {
 				errs++
 			} else {

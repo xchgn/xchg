@@ -68,7 +68,6 @@ type Peer struct {
 	httpServer2 *router.HttpServer
 
 	router1 *router.Router
-	router2 *router.Router
 }
 
 type PeerProcessor interface {
@@ -150,7 +149,7 @@ func (c *Peer) Start(enableLocalRouter bool) (err error) {
 	}
 	c.mtx.Unlock()
 
-	c.localAddressBS, _ = utils.PublicKeyToBytes(&c.privateKey.PublicKey)
+	c.localAddressBS = utils.PublicKeyToAddress(&c.privateKey.PublicKey).Bytes()
 
 	c.updateHttpPeers()
 
@@ -191,11 +190,6 @@ func (c *Peer) Stop() (err error) {
 		c.router1 = nil
 	}
 
-	if c.router2 != nil {
-		c.router2.Stop()
-		c.router2 = nil
-	}
-
 	if c.httpServer1 != nil {
 		c.httpServer1.Stop()
 		c.httpServer1 = nil
@@ -228,35 +222,6 @@ func (c *Peer) Stop() (err error) {
 	return
 }
 
-/*
-	func (c *Peer) thUDP() {
-		c.logger.Println("UDR started")
-		addr, _ := net.ResolveUDPAddr("udp", ":8585")
-		var err error
-		c.udpConn, err = net.ListenUDP("udp", addr)
-		if err != nil {
-			c.logger.Println("ERROR:", err)
-			return
-		}
-
-		for !c.stopping {
-			buffer := make([]byte, 4000)
-			c.logger.Println("UDR reading ...", addr)
-			bytesRead, remoteAddr, err := c.udpConn.ReadFromUDP(buffer)
-			if err != nil {
-				c.logger.Println("ReadFromUDP error:", err)
-				break
-			}
-			incoming := string(buffer[0:bytesRead])
-			c.processFrame("UDP", buffer[0:bytesRead])
-			c.logger.Println("RECEIVED UDP", incoming, "from", remoteAddr.String())
-		}
-
-		if c.udpConn != nil {
-			c.udpConn.Close()
-		}
-	}
-*/
 func (c *Peer) Network() *Network {
 	return c.network
 }
@@ -318,34 +283,6 @@ func (c *Peer) fixStat() {
 	c.mtx.Unlock()
 }
 
-/*
-	func (c *Peer) declareUDPPoint() {
-		c.logger.Println("-------DECLARE UDP------")
-		c.mtx.Lock()
-		network := c.network
-		c.mtx.Unlock()
-
-		if network == nil {
-			return
-		}
-
-		if c.udpConn == nil {
-			c.logger.Println("c.udpConn == nil")
-			return
-		}
-
-		routers := network.GetNodesAddressesByAddress(c.localAddress)
-		for _, router := range routers {
-			//signalAddress := "x03.gazer.cloud:8484"
-			remote, _ := net.ResolveUDPAddr("udp", router)
-			bytesWritten, err := c.udpConn.WriteTo([]byte(c.localAddress), remote)
-			if err != nil {
-				c.logger.Println("UDP send error:", err)
-			}
-			c.logger.Println(bytesWritten, " bytes written")
-		}
-	}
-*/
 func (c *Peer) getFramesFromRouter(router string) {
 	/////////////////////////////////////////////
 	c.mtx.Lock()

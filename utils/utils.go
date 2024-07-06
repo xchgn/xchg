@@ -57,14 +57,6 @@ func VerifySignature(pubKey *ecdsa.PublicKey, data []byte, signature []byte) boo
 	return crypto.VerifySignature(crypto.FromECDSAPub(pubKey), hash.Bytes(), signature[:len(signature)-1]) // -1 to remove the recovery id
 }
 
-func PublicKeyToBytes(publicKey *ecdsa.PublicKey) ([]byte, error) {
-	if publicKey == nil {
-		return nil, errors.New("publicKey == nil")
-	}
-	bs := PublicKeyToDer(publicKey)
-	return AddressBSForPublicKeyBS(bs)
-}
-
 func PublicKeyToAddress(publicKey *ecdsa.PublicKey) common.Address {
 	if publicKey == nil {
 		return common.Address{}
@@ -88,7 +80,7 @@ func AddressBSForPublicKeyBS(publicKeyBS []byte) ([]byte, error) {
 	return crypto.PubkeyToAddress(*pubKey).Bytes(), nil
 }
 
-func PublicKeyToDer(publicKey *ecdsa.PublicKey) (publicKeyDer []byte) {
+func PublicKeyToBytes(publicKey *ecdsa.PublicKey) (publicKeyDer []byte) {
 	if publicKey == nil {
 		return
 	}

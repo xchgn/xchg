@@ -99,7 +99,7 @@ func (c *Peer) processFrame10(routerHost string, frame []byte) (responseFrames [
 			trResponse := NewTransaction(0x11, utils.PublicKeyToAddress(&c.privateKey.PublicKey), srcAddress, incomingTransaction.TransactionId, incomingTransaction.SessionId, 0, len(resp), resp)
 
 			offset := 0
-			blockSize := 4 * 1024
+			blockSize := MaxFrameSize
 			for offset < len(trResponse.Data) {
 				currentBlockSize := blockSize
 				restDataLen := len(trResponse.Data) - offset
@@ -141,51 +141,39 @@ func (c *Peer) processFrame11(routerHost string, frame []byte) {
 	}
 }
 
-// ARP LAN request
+// Get Public Key Request
 func (c *Peer) processFrame20(frame []byte) (responseFrames []*Transaction) {
-
 	responseFrames = make([]*Transaction, 0)
-
-	//c.mtx.Lock()
-	//localAddress := AddressForPublicKey(&c.privateKey.PublicKey)
-	//c.mtx.Unlock()
-
 	transaction, err := Parse(frame)
+
+	// Checks
 	if err != nil {
 		return
 	}
+	if len(transaction.Data) != 20 {
+		return
+	}
+	if len(c.localAddressBS) != 20 {
+		return
+	}
 
-	fmt.Println("20 received", transaction)
-
-	nonce := transaction.Data[:16]
-
-	requestedAddress := transaction.Data[16:]
-
-	for i := 0; i < len(requestedAddress); i++ { // TODO
+	//nonce := transaction.Data[:16]
+	requestedAddress := transaction.Data[:20]
+	for i := 0; i < 20; i++ {
 		if c.localAddressBS[i] != requestedAddress[i] {
-			return
+			return // It is not my address
 		}
 	}
 
-	// Send my public key
-	publicKeyBS := utils.PublicKeyToDer(&c.privateKey.PublicKey)
-
-	// And signature
-	signature, err := utils.SignData(c.privateKey, nonce)
-	if err != nil {
-		return
-	}
-
+	// Send Public Key
+	publicKeyBS := utils.PublicKeyToBytes(&c.privateKey.PublicKey)
 	srcAddress, _ := utils.BytesToAddress(transaction.SrcAddress[:])
 
 	response := NewTransaction(0x21, utils.PublicKeyToAddress(&c.privateKey.PublicKey), srcAddress, 0, 0, 0, 0, nil)
-	response.Data = make([]byte, 16+256+len(publicKeyBS))
-	copy(response.Data[0:], nonce)
-	copy(response.Data[16:], signature)
-	copy(response.Data[16+256:], publicKeyBS)
+	response.Data = make([]byte, len(publicKeyBS))
+	copy(response.Data, publicKeyBS)
 	responseFrames = append(responseFrames, response)
 	return
-	//_, _ = conn.WriteTo(response.Marshal(), sourceAddress)
 }
 
 func (c *Peer) processFrame21(routerHost string, frame []byte) {
@@ -194,24 +182,25 @@ func (c *Peer) processFrame21(routerHost string, frame []byte) {
 		return
 	}
 
-	if len(transaction.Data) < 16+256 {
-		//err = errors.New("wrong frame size")
+	if len(transaction.Data) < 64 {
 		return
 	}
 
-	receivedPublicKeyBS := transaction.Data[16+256:]
+	receivedPublicKeyBS := transaction.Data
 	receivedPublicKey, err := utils.PublicKeyFromDer([]byte(receivedPublicKeyBS))
 	if err != nil {
 		return
 	}
 
 	receivedAddress := utils.PublicKeyToAddress(receivedPublicKey)
+	fmt.Println("Received address:", receivedAddress.Hex())
 
 	c.mtx.Lock()
 
 	for _, peer := range c.remotePeers {
-		if peer.RemoteAddress() == receivedAddress {
-			peer.setConnectionPoint(routerHost, receivedPublicKey, transaction.Data[0:16], transaction.Data[16:16+65])
+		fmt.Println("Peer address:", peer.RemoteAddress().Hex())
+		if peer.RemoteAddress().Hex() == receivedAddress.Hex() {
+			peer.setConnectionPoint(routerHost, receivedPublicKey)
 			break
 		}
 	}
