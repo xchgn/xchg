@@ -1,13 +1,12 @@
 package xchg
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
 	"net"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -19,8 +18,8 @@ type Network struct {
 
 	Source string
 
-	fromInternet       bool
-	fromInternetLoaded bool
+	//fromInternet       bool
+	//fromInternetLoaded bool
 
 	Name          string   `json:"name"`
 	Timestamp     int64    `json:"timestamp"`
@@ -78,7 +77,7 @@ func NewNetworkFromFile(fileName string) (*Network, error) {
 	var bs []byte
 	var err error
 
-	bs, err = ioutil.ReadFile(fileName)
+	bs, err = os.ReadFile(fileName)
 	if err != nil {
 		return nil, err
 	}
@@ -174,43 +173,8 @@ func (c *Network) GetNodesAddressesByAddress(address string) []string {
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 
-	address = strings.ReplaceAll(address, "#", "")
-	address = strings.ToLower(address)
-	shaAddress := sha256.Sum256([]byte(address))
+	var addresses []string
 
-	SHAPublicKeyHex := hex.EncodeToString(shaAddress[:])
-
-	var preferredRange *rng
-	preferredRangeScore := 0
-
-	for _, r := range c.Ranges {
-		rangeScore := 0
-		for i := 0; i < len(SHAPublicKeyHex) && i < len(r.Prefix); i++ {
-			if r.Prefix[i] == SHAPublicKeyHex[i] {
-				rangeScore++
-			}
-		}
-		if rangeScore == len(r.Prefix) && rangeScore > preferredRangeScore {
-			preferredRange = r
-			preferredRangeScore = rangeScore
-		}
-	}
-
-	addresses := make([]string, 0)
-	if preferredRange != nil {
-		for _, host := range preferredRange.Hosts {
-			addresses = append(addresses, host.Address)
-		}
-	}
-
-	// Randomize
-	rnd := make([]byte, len(addresses))
-	rand.Read(rnd)
-	sort.Slice(addresses, func(i, j int) bool {
-		return rnd[i] < rnd[j]
-	})
-
-	// local router
 	addresses = append(addresses, c.GetLocalNodes()...)
 
 	return addresses

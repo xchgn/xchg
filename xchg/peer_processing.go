@@ -1,7 +1,6 @@
 package xchg
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -78,7 +77,7 @@ func (c *Peer) processFrame10(routerHost string, frame []byte) (responseFrames [
 	var ok bool
 	incomingTransactionCode := fmt.Sprint(transaction.SrcAddress, "-", transaction.TransactionId)
 	if incomingTransaction, ok = c.incomingTransactions[incomingTransactionCode]; !ok {
-		incomingTransaction = NewTransaction(transaction.FrameType, utils.AddressForPublicKey(&c.privateKey.PublicKey), srcAddr, transaction.TransactionId, transaction.SessionId, 0, int(transaction.TotalSize), make([]byte, 0))
+		incomingTransaction = NewTransaction(transaction.FrameType, utils.PublicKeyToAddress(&c.privateKey.PublicKey), srcAddr, transaction.TransactionId, transaction.SessionId, 0, int(transaction.TotalSize), make([]byte, 0))
 		incomingTransaction.BeginDT = time.Now()
 		c.incomingTransactions[incomingTransactionCode] = incomingTransaction
 	}
@@ -101,7 +100,7 @@ func (c *Peer) processFrame10(routerHost string, frame []byte) (responseFrames [
 	if processor != nil {
 		resp, dontSendResponse := c.onEdgeReceivedCall(incomingTransaction.SessionId, incomingTransaction.Data)
 		if !dontSendResponse {
-			trResponse := NewTransaction(0x11, utils.AddressForPublicKey(&c.privateKey.PublicKey), srcAddress, incomingTransaction.TransactionId, incomingTransaction.SessionId, 0, len(resp), resp)
+			trResponse := NewTransaction(0x11, utils.PublicKeyToAddress(&c.privateKey.PublicKey), srcAddress, incomingTransaction.TransactionId, incomingTransaction.SessionId, 0, len(resp), resp)
 
 			offset := 0
 			blockSize := 4 * 1024
@@ -112,7 +111,7 @@ func (c *Peer) processFrame10(routerHost string, frame []byte) (responseFrames [
 					currentBlockSize = restDataLen
 				}
 
-				blockTransaction := NewTransaction(0x11, utils.AddressForPublicKey(&c.privateKey.PublicKey), srcAddress, trResponse.TransactionId, trResponse.SessionId, offset, len(resp), trResponse.Data[offset:offset+currentBlockSize])
+				blockTransaction := NewTransaction(0x11, utils.PublicKeyToAddress(&c.privateKey.PublicKey), srcAddress, trResponse.TransactionId, trResponse.SessionId, offset, len(resp), trResponse.Data[offset:offset+currentBlockSize])
 				blockTransaction.Offset = uint32(offset)
 				blockTransaction.TotalSize = uint32(len(trResponse.Data))
 				blockTransaction.FromLocalNode = incomingTransaction.FromLocalNode
@@ -183,7 +182,7 @@ func (c *Peer) processFrame20(frame []byte) (responseFrames []*Transaction) {
 
 	srcAddress, _ := utils.BytesToAddress(transaction.SrcAddress[:])
 
-	response := NewTransaction(0x21, utils.AddressForPublicKey(&c.privateKey.PublicKey), srcAddress, 0, 0, 0, 0, nil)
+	response := NewTransaction(0x21, utils.PublicKeyToAddress(&c.privateKey.PublicKey), srcAddress, 0, 0, 0, 0, nil)
 	response.Data = make([]byte, 16+256+len(publicKeyBS))
 	copy(response.Data[0:], nonce)
 	copy(response.Data[16:], signature)
@@ -200,7 +199,7 @@ func (c *Peer) processFrame21(routerHost string, frame []byte) {
 	}
 
 	if len(transaction.Data) < 16+256 {
-		err = errors.New("wrong frame size")
+		//err = errors.New("wrong frame size")
 		return
 	}
 
@@ -210,7 +209,7 @@ func (c *Peer) processFrame21(routerHost string, frame []byte) {
 		return
 	}
 
-	receivedAddress := utils.AddressForPublicKey(receivedPublicKey)
+	receivedAddress := utils.PublicKeyToAddress(receivedPublicKey)
 
 	c.mtx.Lock()
 

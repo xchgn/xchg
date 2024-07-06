@@ -7,14 +7,10 @@ import (
 	"crypto/cipher"
 	"crypto/ecdsa"
 	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base32"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -61,7 +57,7 @@ func VerifySignature(pubKey *ecdsa.PublicKey, data []byte, signature []byte) boo
 	return crypto.VerifySignature(crypto.FromECDSAPub(pubKey), hash.Bytes(), signature[:len(signature)-1]) // -1 to remove the recovery id
 }
 
-func AddressBSForPublicKey(publicKey *ecdsa.PublicKey) ([]byte, error) {
+func PublicKeyToBytes(publicKey *ecdsa.PublicKey) ([]byte, error) {
 	if publicKey == nil {
 		return nil, errors.New("publicKey == nil")
 	}
@@ -69,25 +65,11 @@ func AddressBSForPublicKey(publicKey *ecdsa.PublicKey) ([]byte, error) {
 	return AddressBSForPublicKeyBS(bs)
 }
 
-func AddressForPublicKey(publicKey *ecdsa.PublicKey) common.Address {
+func PublicKeyToAddress(publicKey *ecdsa.PublicKey) common.Address {
 	if publicKey == nil {
 		return common.Address{}
 	}
 	return crypto.PubkeyToAddress(*publicKey)
-}
-
-func AddressForPublicKeyBS(publicKeyBS []byte) string {
-	if len(publicKeyBS) == 0 {
-		return ""
-	}
-
-	hash := publicKeyBS
-	for i := 0; i < 1; i++ {
-		h := sha256.Sum256(hash)
-		hash = h[:]
-	}
-
-	return "#" + strings.ToLower(base32.StdEncoding.EncodeToString(hash[:AddressBytesSize]))
 }
 
 func BytesToAddress(bytes []byte) (common.Address, error) {
@@ -158,6 +140,9 @@ func EncryptAESGCM(decryptedMessage []byte, key []byte) (encryptedMessage []byte
 	}
 	var gcm cipher.AEAD
 	gcm, err = cipher.NewGCM(ch)
+	if err != nil {
+		return nil, err
+	}
 	nonce := make([]byte, gcm.NonceSize())
 	_, err = io.ReadFull(rand.Reader, nonce)
 	if err != nil {
@@ -175,8 +160,14 @@ func PackBytes(data []byte) []byte {
 	zipFile, err = zipWriter.Create("data")
 	if err == nil {
 		_, err = zipFile.Write(data)
+		if err != nil {
+			return nil
+		}
 	}
 	err = zipWriter.Close()
+	if err != nil {
+		return nil
+	}
 	return buf.Bytes()
 }
 
@@ -190,7 +181,7 @@ func UnpackBytes(zippedData []byte) (result []byte, err error) {
 	var file fs.File
 	file, err = zipFile.Open("data")
 	if err == nil {
-		result, err = ioutil.ReadAll(file)
+		result, err = io.ReadAll(file)
 		_ = file.Close()
 	}
 	return

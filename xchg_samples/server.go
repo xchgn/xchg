@@ -35,7 +35,7 @@ func StartServerFast(accessKey string, processor func(function string, parameter
 }
 
 func (c *Server) Address() common.Address {
-	return utils.AddressForPublicKey(&c.privateKey.PublicKey)
+	return utils.PublicKeyToAddress(&c.privateKey.PublicKey)
 }
 
 func (c *Server) Stop() {

@@ -70,8 +70,6 @@ type Peer struct {
 
 	router1 *router.Router
 	router2 *router.Router
-
-	udpConn *net.UDPConn
 }
 
 type PeerProcessor interface {
@@ -153,7 +151,7 @@ func (c *Peer) Start(enableLocalRouter bool) (err error) {
 	}
 	c.mtx.Unlock()
 
-	c.localAddressBS, _ = utils.AddressBSForPublicKey(&c.privateKey.PublicKey)
+	c.localAddressBS, _ = utils.PublicKeyToBytes(&c.privateKey.PublicKey)
 
 	c.updateHttpPeers()
 
@@ -172,7 +170,7 @@ func (c *Peer) Start(enableLocalRouter bool) (err error) {
 }
 
 func (c *Peer) updateHttpPeers() {
-	return
+	//return
 }
 
 func (c *Peer) Stop() (err error) {

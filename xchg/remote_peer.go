@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -41,7 +40,7 @@ type RemotePeer struct {
 
 	httpClient *http.Client
 
-	findingConnection    bool
+	//findingConnection    bool
 	authProcessing       bool
 	aesKey               []byte
 	sessionId            uint64
@@ -82,6 +81,7 @@ func (c *RemotePeer) processFrame(routerHost string, frame []byte) {
 }
 
 func (c *RemotePeer) processFrame11(routerHost string, frame []byte) {
+	_ = routerHost
 	transaction, err := Parse(frame)
 	if err != nil {
 		fmt.Println(err)
@@ -126,7 +126,7 @@ func (c *RemotePeer) Call(network *Network, function string, data []byte, timeou
 	// Check transport leyer
 	nonce := c.nonces.Next()
 	addressBS := c.remoteAddress.Bytes()
-	transaction := NewTransaction(0x20, utils.AddressForPublicKey(&c.privateKey.PublicKey), c.remoteAddress, 0, 0, 0, 0, nil)
+	transaction := NewTransaction(0x20, utils.PublicKeyToAddress(&c.privateKey.PublicKey), c.remoteAddress, 0, 0, 0, 0, nil)
 	transaction.Data = make([]byte, 16+len(addressBS))
 	copy(transaction.Data[0:], nonce[:])
 	copy(transaction.Data[16:], addressBS)
@@ -141,7 +141,7 @@ func (c *RemotePeer) Call(network *Network, function string, data []byte, timeou
 	}
 
 	c.mtx.Lock()
-	sessionId = c.sessionId
+	//sessionId = c.sessionId
 	aesKey := make([]byte, len(c.aesKey))
 	copy(aesKey, c.aesKey)
 	c.mtx.Unlock()
@@ -370,7 +370,7 @@ func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data
 	c.nextTransactionId++
 
 	// Create transaction
-	t := NewTransaction(FrameTypeCall, utils.AddressForPublicKey(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, 0, len(data), data)
+	t := NewTransaction(FrameTypeCall, utils.PublicKeyToAddress(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, 0, len(data), data)
 	c.outgoingTransactions[transactionId] = t
 	c.mtx.Unlock()
 
@@ -387,13 +387,9 @@ func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data
 			currentBlockSize = restDataLen
 		}
 
-		blockTransaction := NewTransaction(FrameTypeCall, utils.AddressForPublicKey(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, offset, len(data), data[offset:offset+currentBlockSize])
+		blockTransaction := NewTransaction(FrameTypeCall, utils.PublicKeyToAddress(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, offset, len(data), data[offset:offset+currentBlockSize])
 
 		err = c.Send(network, blockTransaction)
-		if err == nil {
-			sentCount++
-			break
-		}
 
 		if err != nil {
 			c.mtx.Lock()
@@ -401,6 +397,7 @@ func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data
 			c.mtx.Unlock()
 			return
 		}
+		sentCount++
 		offset += currentBlockSize
 		//fmt.Println("executeTransaction send ", currentBlockSize, c.internalId)
 	}
@@ -494,7 +491,7 @@ func (c *RemotePeer) httpCall(routerHost string, function string, frame []byte) 
 		return
 	} else {
 		var content []byte
-		content, err = ioutil.ReadAll(response.Body)
+		content, err = io.ReadAll(response.Body)
 		if err != nil {
 			response.Body.Close()
 			return

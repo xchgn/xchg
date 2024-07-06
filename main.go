@@ -17,7 +17,7 @@ func main() {
 		server := xchg_samples.NewSimpleServer(serverPrivateKey)
 		server.Start()
 
-		serverAddress := utils.AddressForPublicKey(&serverPrivateKey.PublicKey)
+		serverAddress := utils.PublicKeyToAddress(&serverPrivateKey.PublicKey)
 		fmt.Println(serverAddress)
 		client := xchg_samples.NewSimpleClient(serverAddress)
 

@@ -85,10 +85,7 @@ func NeedToMakeSession(err error) bool {
 		return false
 	}
 	errStr := err.Error()
-	if strings.Contains(errStr, "{ERR_XCHG_SRV_CONN_") {
-		return true
-	}
-	return false
+	return strings.Contains(errStr, "{ERR_XCHG_SRV_CONN_")
 }
 
 // Reason to change node
@@ -97,8 +94,5 @@ func NeedToChangeNode(err error) bool {
 		return false
 	}
 	errStr := err.Error()
-	if strings.Contains(errStr, "{ERR_XCHG_ROUTER_") {
-		return true
-	}
-	return false
+	return strings.Contains(errStr, "{ERR_XCHG_ROUTER_")
 }
