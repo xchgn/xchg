@@ -251,7 +251,7 @@ func (c *RemotePeer) regularCall(network *Network, function string, data []byte,
 		return
 	}
 
-	encrypted := false
+	encryptedWithAES := false
 
 	c.mtx.Lock()
 	localPrivateKey := c.privateKey
@@ -273,6 +273,11 @@ func (c *RemotePeer) regularCall(network *Network, function string, data []byte,
 
 	var frame []byte
 	if len(aesKey) == 32 {
+		// session is active - using AES
+		// [0:8] = sessionNonceCounter
+		// [8] = len(function)
+		// [9:n] = function
+		// [n:m] = data
 		frame = make([]byte, 8+1+len(function)+len(data))
 		binary.LittleEndian.PutUint64(frame, sessionNonceCounter)
 		frame[8] = byte(len(function))
@@ -285,8 +290,12 @@ func (c *RemotePeer) regularCall(network *Network, function string, data []byte,
 			err = errors.New(ERR_XCHG_CL_CONN_CALL_ENC + ":" + err.Error())
 			return
 		}
-		encrypted = true
+		encryptedWithAES = true
 	} else {
+		// session is not active - using ECDSA
+		// [0] = len(function)
+		// [1:n] = function
+		// [n:m] = data
 		frame = make([]byte, 1+len(function)+len(data))
 		frame[0] = byte(len(function))
 		copy(frame[1:], function)
@@ -305,7 +314,7 @@ func (c *RemotePeer) regularCall(network *Network, function string, data []byte,
 		return
 	}
 
-	if encrypted {
+	if encryptedWithAES {
 		result, err = utils.DecryptAESGCM(result, aesKey)
 		if err != nil {
 			c.Reset()
@@ -514,11 +523,9 @@ func (c *RemotePeer) Post(url, contentType string, body io.Reader, host string) 
 func (c *RemotePeer) Send(network *Network, tr *Transaction) (err error) {
 	//fmt.Println("RemotePeer::Send", tr.TransactionId)
 
-	addrs := network.GetNodesAddressesByAddress(tr.DestAddressString())
+	addr := network.GetRouterAddr()
 	bs := tr.Marshal()
-	for _, a := range addrs {
-		go c.httpCall(a, "w", bs)
-	}
+	go c.httpCall(addr, "w", bs)
 	return
 }
 
@@ -531,10 +538,7 @@ func (c *RemotePeer) Check(frame20 *Transaction, network *Network, remotePublicK
 }
 
 func (c *RemotePeer) checkInternetConnectionPoint(frame20 *Transaction, network *Network) (err error) {
-	addrs := network.GetNodesAddressesByAddress(frame20.DestAddressString())
-	for _, a := range addrs {
-		go c.httpCall(a, "w", frame20.Marshal())
-	}
-
+	addr := network.GetRouterAddr()
+	go c.httpCall(addr, "w", frame20.Marshal())
 	return
 }

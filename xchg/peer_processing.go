@@ -48,17 +48,13 @@ func (c *Peer) processFrame(routerHost string, frame []byte) (responseFrames []*
 func (c *Peer) processFrame10(routerHost string, frame []byte) (responseFrames []*Transaction) {
 	var processor ServerProcessor
 
+	_ = routerHost
+
 	responseFrames = make([]*Transaction, 0)
 
 	transaction, err := Parse(frame)
 	if err != nil {
 		return
-	}
-
-	if c.network != nil {
-		if c.network.IsLocalNode(routerHost) {
-			transaction.FromLocalNode = true
-		}
 	}
 
 	c.mtx.Lock()

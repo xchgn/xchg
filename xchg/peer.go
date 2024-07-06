@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/xchgn/xchg/router"
 	"github.com/xchgn/xchg/utils"
 )
@@ -107,7 +106,7 @@ func NewPeer(privateKey *ecdsa.PrivateKey, logger Logger) *Peer {
 	c.authNonces = NewNonces(100)
 	c.sessionsById = make(map[uint64]*Session)
 	c.nextSessionId = 1
-	c.network = NewNetworkLocalhost()
+	c.network = NewNetwork()
 	c.lastReceivedMessageId = make(map[string]uint64)
 
 	c.routerStatRead = make(map[string]int)
@@ -419,7 +418,7 @@ func (c *Peer) getFramesFromRouter(router string) {
 			//c.logger.Println("Received frames:", framesCount)
 			if len(responses) > 0 {
 				for _, f := range responses {
-					c.send(f.Marshal(), f.FromLocalNode)
+					c.send(f.Marshal())
 				}
 			}
 		}
@@ -436,24 +435,13 @@ func (c *Peer) getFramesFromInternet() {
 		return
 	}
 
-	routers := network.GetNodesAddressesByAddress(crypto.PubkeyToAddress(c.privateKey.PublicKey).Hex())
-	for _, router := range routers {
-		c.getFramesFromRouter(router)
-	}
+	addr := network.GetRouterAddr()
+	c.getFramesFromRouter(addr)
 }
 
-func (c *Peer) send(frame []byte, onlyToLocalRouter bool) {
-	//addr := "#" + strings.ToLower(base32.StdEncoding.EncodeToString(frame[70:70+30]))
-	addrs := c.network.GetNodesAddressesByAddress("")
-	if onlyToLocalRouter {
-		addrs = c.network.GetLocalNodes()
-	}
-	//countHosts := len(addrs)/2 + 1
-	countHosts := len(addrs)
-	for i := 0; i < countHosts; i++ {
-		routerHost := addrs[i]
-		go c.httpCall(c.httpClient, routerHost, "w", frame)
-	}
+func (c *Peer) send(frame []byte) {
+	addr := c.network.GetRouterAddr()
+	go c.httpCall(c.httpClient, addr, "w", frame)
 }
 
 func (c *Peer) httpCall(httpClient *http.Client, routerHost string, function string, frame []byte) (result []byte, err error) {
