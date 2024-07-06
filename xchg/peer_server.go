@@ -140,7 +140,7 @@ func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error
 	}
 
 	remotePublicKeyBS := functionParameter[4 : 4+remotePublicKeyBSLen]
-	remotePublicKey, err := utils.PublicKeyFromDer(remotePublicKeyBS)
+	remotePublicKey, err := utils.BytesToPublicKey(remotePublicKeyBS)
 	if err != nil {
 		err = errors.New(INTERNAL_ERROR)
 		return

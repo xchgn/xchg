@@ -170,35 +170,30 @@ func (c *Peer) processFrame20(frame []byte) (responseFrames []*Transaction) {
 	srcAddress, _ := utils.BytesToAddress(transaction.SrcAddress[:])
 
 	response := NewTransaction(0x21, utils.PublicKeyToAddress(&c.privateKey.PublicKey), srcAddress, 0, 0, 0, 0, nil)
-	response.Data = make([]byte, len(publicKeyBS))
+	response.Data = make([]byte, 65)
 	copy(response.Data, publicKeyBS)
 	responseFrames = append(responseFrames, response)
 	return
 }
 
 func (c *Peer) processFrame21(routerHost string, frame []byte) {
+
 	transaction, err := Parse(frame)
 	if err != nil {
 		return
 	}
-
-	if len(transaction.Data) < 64 {
+	if len(transaction.Data) != 65 {
 		return
 	}
-
 	receivedPublicKeyBS := transaction.Data
-	receivedPublicKey, err := utils.PublicKeyFromDer([]byte(receivedPublicKeyBS))
+	receivedPublicKey, err := utils.BytesToPublicKey([]byte(receivedPublicKeyBS))
 	if err != nil {
 		return
 	}
-
 	receivedAddress := utils.PublicKeyToAddress(receivedPublicKey)
-	fmt.Println("Received address:", receivedAddress.Hex())
-
 	c.mtx.Lock()
 
 	for _, peer := range c.remotePeers {
-		fmt.Println("Peer address:", peer.RemoteAddress().Hex())
 		if peer.RemoteAddress().Hex() == receivedAddress.Hex() {
 			peer.setConnectionPoint(routerHost, receivedPublicKey)
 			break

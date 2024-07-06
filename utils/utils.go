@@ -87,7 +87,7 @@ func PublicKeyToBytes(publicKey *ecdsa.PublicKey) (publicKeyDer []byte) {
 	return crypto.FromECDSAPub(publicKey)
 }
 
-func PublicKeyFromDer(publicKeyDer []byte) (publicKey *ecdsa.PublicKey, err error) {
+func BytesToPublicKey(publicKeyDer []byte) (publicKey *ecdsa.PublicKey, err error) {
 	pubKey, err := crypto.UnmarshalPubkey(publicKeyDer)
 	if err != nil {
 		return nil, err
