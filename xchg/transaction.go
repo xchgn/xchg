@@ -48,8 +48,8 @@ type Transaction struct {
 	// 20 bytes - Source Address
 	DestAddress [utils.AddressBytesSize]byte // 49
 
-	//
-	Cheque Cheque
+	// Cheque = 101 bytes
+	Cheque *Cheque
 
 	// Data
 	Data []byte
@@ -66,13 +66,13 @@ type Transaction struct {
 }
 
 const (
-	TransactionHeaderSize = 69
+	TransactionHeaderSize = 69 + XchgChequeSize
 
 	FrameTypeCall     = byte(0x10)
 	FrameTypeResponse = byte(0x11)
 )
 
-func NewTransaction(frameType byte, srcAddress common.Address, destAddress common.Address, transactionId uint64, sessionId uint64, offset int, totalSize int, data []byte) *Transaction {
+func NewTransaction(frameType byte, srcAddress common.Address, destAddress common.Address, transactionId uint64, sessionId uint64, offset int, totalSize int, cheque *Cheque, data []byte) *Transaction {
 	var c Transaction
 	c.Length = uint32(TransactionHeaderSize + len(data))
 	c.FrameType = frameType
@@ -84,6 +84,9 @@ func NewTransaction(frameType byte, srcAddress common.Address, destAddress commo
 
 	copy(c.SrcAddress[:], srcAddress.Bytes())
 	copy(c.DestAddress[:], destAddress.Bytes())
+
+	c.Cheque = &Cheque{}
+	c.Cheque.DeserializeFromBytes(cheque.SerializeToBytes())
 
 	c.Data = data
 
@@ -119,6 +122,9 @@ func Parse(frame []byte) (tr *Transaction, err error) {
 	copy(tr.SrcAddress[:], frame[29:])
 	copy(tr.DestAddress[:], frame[49:])
 
+	tr.Cheque = &Cheque{}
+	tr.Cheque.DeserializeFromBytes(frame[69 : 69+XchgChequeSize])
+
 	tr.Data = make([]byte, len(frame)-TransactionHeaderSize)
 	copy(tr.Data, frame[TransactionHeaderSize:])
 
@@ -138,6 +144,8 @@ func (c *Transaction) Marshal() (result []byte) {
 
 	copy(result[29:], c.SrcAddress[:])
 	copy(result[49:], c.DestAddress[:])
+
+	copy(result[69:], c.Cheque.SerializeToBytes())
 
 	copy(result[TransactionHeaderSize:], c.Data)
 

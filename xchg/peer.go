@@ -30,7 +30,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -425,7 +424,7 @@ func (c *Peer) httpCall(httpClient *http.Client, routerHost string, function str
 		return
 	} else {
 		var content []byte
-		content, err = ioutil.ReadAll(response.Body)
+		content, err = io.ReadAll(response.Body)
 		if err != nil {
 			response.Body.Close()
 			return

@@ -78,7 +78,15 @@ func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (respons
 	var ok bool
 	incomingTransactionCode := fmt.Sprint(transaction.SrcAddress, "-", transaction.TransactionId)
 	if incomingTransaction, ok = c.incomingTransactions[incomingTransactionCode]; !ok {
-		incomingTransaction = NewTransaction(transaction.FrameType, utils.PublicKeyToAddress(&c.privateKey.PublicKey), srcAddr, transaction.TransactionId, transaction.SessionId, 0, int(transaction.TotalSize), make([]byte, 0))
+		incomingTransaction = NewTransaction(transaction.FrameType,
+			utils.PublicKeyToAddress(&c.privateKey.PublicKey),
+			srcAddr,
+			transaction.TransactionId,
+			transaction.SessionId,
+			0,
+			int(transaction.TotalSize),
+			transaction.Cheque,
+			make([]byte, 0))
 		incomingTransaction.BeginDT = time.Now()
 		c.incomingTransactions[incomingTransactionCode] = incomingTransaction
 	}
@@ -98,10 +106,20 @@ func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (respons
 
 	srcAddress, _ := utils.BytesToAddress(transaction.SrcAddress[:])
 
+	generatedLocalCheque := &Cheque{}
+
 	if processor != nil {
 		resp, dontSendResponse := c.onEdgeReceivedCall(incomingTransaction.SessionId, incomingTransaction.Data)
 		if !dontSendResponse {
-			trResponse := NewTransaction(0x11, utils.PublicKeyToAddress(&c.privateKey.PublicKey), srcAddress, incomingTransaction.TransactionId, incomingTransaction.SessionId, 0, len(resp), resp)
+			trResponse := NewTransaction(0x11,
+				utils.PublicKeyToAddress(&c.privateKey.PublicKey),
+				srcAddress,
+				incomingTransaction.TransactionId,
+				incomingTransaction.SessionId,
+				0,
+				len(resp),
+				generatedLocalCheque,
+				resp)
 
 			offset := 0
 			blockSize := XchgMaxFrameSize
@@ -112,7 +130,16 @@ func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (respons
 					currentBlockSize = restDataLen
 				}
 
-				blockTransaction := NewTransaction(0x11, utils.PublicKeyToAddress(&c.privateKey.PublicKey), srcAddress, trResponse.TransactionId, trResponse.SessionId, offset, len(resp), trResponse.Data[offset:offset+currentBlockSize])
+				blockTransaction := NewTransaction(0x11,
+					utils.PublicKeyToAddress(&c.privateKey.PublicKey),
+					srcAddress,
+					trResponse.TransactionId,
+					trResponse.SessionId,
+					offset,
+					len(resp),
+					trResponse.Cheque,
+					trResponse.Data[offset:offset+currentBlockSize])
+
 				blockTransaction.Offset = uint32(offset)
 				blockTransaction.TotalSize = uint32(len(trResponse.Data))
 				blockTransaction.FromLocalNode = incomingTransaction.FromLocalNode
@@ -173,10 +200,20 @@ func (c *Peer) processFrameGetPublicKeyRequest(frame []byte) (responseFrames []*
 		}
 	}
 
+	generatedLocalCheque := &Cheque{}
+
 	// Send Public Key
 	publicKeyBS := utils.PublicKeyToBytes(&c.privateKey.PublicKey)
 	srcAddress, _ := utils.BytesToAddress(transaction.SrcAddress[:])
-	response := NewTransaction(XchgFrameGetPublicKeyResponse, utils.PublicKeyToAddress(&c.privateKey.PublicKey), srcAddress, 0, 0, 0, 0, nil)
+	response := NewTransaction(XchgFrameGetPublicKeyResponse,
+		utils.PublicKeyToAddress(&c.privateKey.PublicKey),
+		srcAddress,
+		0,
+		0,
+		0,
+		0,
+		generatedLocalCheque,
+		nil)
 	response.Data = make([]byte, XchgPublicKeySize)
 	copy(response.Data, publicKeyBS)
 	responseFrames = append(responseFrames, response)

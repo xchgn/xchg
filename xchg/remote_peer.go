@@ -136,8 +136,19 @@ func (c *RemotePeer) Call(network *Network, function string, data []byte, timeou
 
 	if c.remotePublicKey == nil {
 		addressBS := c.remoteAddress.Bytes()
-		transaction := NewTransaction(0x20, utils.PublicKeyToAddress(&c.privateKey.PublicKey), c.remoteAddress, 0, 0, 0, 0, nil)
-		transaction.Data = make([]byte, 20)
+		generatedLocalCheque := &Cheque{}
+
+		transaction := NewTransaction(XchgFrameGetPublicKeyRequest,
+			utils.PublicKeyToAddress(&c.privateKey.PublicKey),
+			c.remoteAddress,
+			0,
+			0,
+			0,
+			0,
+			generatedLocalCheque,
+			nil)
+		transaction.Data = make([]byte, XchgAddressSize)
+
 		copy(transaction.Data, addressBS)
 		addr := network.GetRouterAddr()
 		c.httpCall(addr, "w", transaction.Marshal())
@@ -384,8 +395,10 @@ func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data
 	transactionId = c.nextTransactionId
 	c.nextTransactionId++
 
+	generatedLocalCheque := &Cheque{}
+
 	// Create transaction
-	t := NewTransaction(FrameTypeCall, utils.PublicKeyToAddress(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, 0, len(data), data)
+	t := NewTransaction(FrameTypeCall, utils.PublicKeyToAddress(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, 0, len(data), generatedLocalCheque, data)
 	c.outgoingTransactions[transactionId] = t
 	c.mtx.Unlock()
 
@@ -401,7 +414,7 @@ func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data
 			currentBlockSize = restDataLen
 		}
 
-		blockTransaction := NewTransaction(FrameTypeCall, utils.PublicKeyToAddress(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, offset, len(data), data[offset:offset+currentBlockSize])
+		blockTransaction := NewTransaction(FrameTypeCall, utils.PublicKeyToAddress(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, offset, len(data), generatedLocalCheque, data[offset:offset+currentBlockSize])
 
 		err = c.Send(network, blockTransaction)
 
