@@ -22,19 +22,22 @@
 
 package xchg
 
-type Network struct {
-	routers []*RouterConnection
+import "github.com/ethereum/go-ethereum/common"
+
+type RouterConnection struct {
+	IPAddress  string
+	Address    common.Address
+	LastCheque *Cheque
 }
 
-func NewNetwork() *Network {
-	var c Network
-	c.init()
-	return &c
+func (c *RouterConnection) Init() {
+
 }
 
-func (c *Network) init() {
+func (c *RouterConnection) Write() {
+
 }
 
-func (c *Network) GetRouterAddr() string {
-	return "localhost:8084"
+func (c *RouterConnection) Read() {
+
 }

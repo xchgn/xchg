@@ -134,6 +134,13 @@ func GeneratePrivateKey() (*ecdsa.PrivateKey, error) {
 	return privateKey, nil
 }
 
+func StringToAddress(address string) (common.Address, error) {
+	if !common.IsHexAddress(address) {
+		return common.Address{}, fmt.Errorf("invalid address: %s", address)
+	}
+	return common.HexToAddress(address), nil
+}
+
 func DecryptAESGCM(encryptedMessage []byte, key []byte) (decryptedMessage []byte, err error) {
 	ch, err := aes.NewCipher(key)
 	if err != nil {
