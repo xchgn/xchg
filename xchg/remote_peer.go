@@ -123,6 +123,7 @@ func (c *RemotePeer) processFrame11(routerHost string, frame []byte) {
 }
 
 func (c *RemotePeer) setConnectionPoint(routerHost string, publicKey *ecdsa.PublicKey) {
+	_ = routerHost
 	c.mtx.Lock()
 	c.remotePublicKey = publicKey
 	c.mtx.Unlock()
