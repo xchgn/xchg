@@ -43,7 +43,8 @@ func StartServer(privateKey *ecdsa.PrivateKey, accessKey string, processor func(
 	c.privateKey = privateKey
 	c.accessKey = accessKey
 	c.serverConnection = xchg.NewPeer(privateKey, xchg.NewDefaultLogger())
-	c.serverConnection.SetProcessor(&c)
+	c.serverConnection.ServerProcessorAuth = c.ServerProcessorAuth
+	c.serverConnection.ServerProcessorCall = c.ServerProcessorCall
 	c.processor = processor
 	c.serverConnection.Start(true)
 	return &c

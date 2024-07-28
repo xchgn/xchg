@@ -126,7 +126,7 @@ func (c *RemotePeer) setConnectionPoint(routerHost string, publicKey *ecdsa.Publ
 	c.mtx.Lock()
 	c.remotePublicKey = publicKey
 	c.mtx.Unlock()
-	fmt.Println("Received Address for", c.remoteAddress, "from", routerHost)
+	//fmt.Println("Received Address for", c.remoteAddress, "from", routerHost)
 }
 
 func (c *RemotePeer) Call(network *Network, function string, data []byte, timeout time.Duration) (result []byte, err error) {
@@ -172,7 +172,7 @@ func (c *RemotePeer) Call(network *Network, function string, data []byte, timeou
 }
 
 func (c *RemotePeer) auth(network *Network, timeout time.Duration) (err error) {
-	fmt.Println("RemotePeer::auth")
+	//fmt.Println("RemotePeer::auth")
 
 	c.mtx.Lock()
 	if c.authProcessing {

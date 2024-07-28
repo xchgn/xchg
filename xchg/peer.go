@@ -51,6 +51,9 @@ type Logger interface {
 	Println(v ...interface{})
 }
 
+type ServerProcessorCall func(authData []byte, function string, parameter []byte) (response []byte, err error)
+type ServerProcessorAuth func(authData []byte) (err error)
+
 type Peer struct {
 	mtx        sync.Mutex
 	privateKey *ecdsa.PrivateKey
@@ -78,11 +81,15 @@ type Peer struct {
 	remotePeers map[string]*RemotePeer
 
 	// Server
-	incomingTransactions  map[string]*Transaction
-	sessionsById          map[uint64]*Session
-	authNonces            *Nonces
-	nextSessionId         uint64
-	processor             ServerProcessor
+	incomingTransactions map[string]*Transaction
+	sessionsById         map[uint64]*Session
+	authNonces           *Nonces
+	nextSessionId        uint64
+	//processor            ServerProcessor
+
+	ServerProcessorCall ServerProcessorCall
+	ServerProcessorAuth ServerProcessorAuth
+
 	lastPurgeSessionsTime time.Time
 
 	httpServer1 *router.HttpServer
@@ -95,10 +102,10 @@ type PeerProcessor interface {
 	processFrame(conn net.PacketConn, sourceAddress *net.UDPAddr, routerHost string, frame []byte) (responseFrames []*Transaction)
 }
 
-type ServerProcessor interface {
+/*type ServerProcessor interface {
 	ServerProcessorAuth(authData []byte) (err error)
 	ServerProcessorCall(authData []byte, function string, parameter []byte) (response []byte, err error)
-}
+}*/
 
 const (
 	UDP_PORT          = 8484
@@ -243,13 +250,17 @@ func (c *Peer) Stop() (err error) {
 	return
 }
 
+func (c *Peer) Address() common.Address {
+	return utils.PublicKeyToAddress(&c.privateKey.PublicKey)
+}
+
 func (c *Peer) Network() *Network {
 	return c.network
 }
 
-func (c *Peer) SetProcessor(processor ServerProcessor) {
+/*func (c *Peer) SetProcessor(processor ServerProcessor) {
 	c.processor = processor
-}
+}*/
 
 func (c *Peer) thWork() {
 	c.started = true

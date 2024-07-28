@@ -51,7 +51,7 @@ func (c *Peer) processFrame(routerHost string, frame []byte) (responseFrames []*
 }
 
 func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (responseFrames []*Transaction) {
-	var processor ServerProcessor
+	//var processor ServerProcessor
 
 	_ = routerHost
 
@@ -63,7 +63,7 @@ func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (respons
 	}
 
 	c.mtx.Lock()
-	processor = c.processor
+	//processor = c.processor
 	var incomingTransaction *Transaction
 
 	for trCode, tr := range c.incomingTransactions {
@@ -108,46 +108,46 @@ func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (respons
 
 	generatedLocalCheque := &Cheque{}
 
-	if processor != nil {
-		resp, dontSendResponse := c.onEdgeReceivedCall(incomingTransaction.SessionId, incomingTransaction.Data)
-		if !dontSendResponse {
-			trResponse := NewTransaction(0x11,
+	//if processor != nil {
+	resp, dontSendResponse := c.onEdgeReceivedCall(incomingTransaction.SessionId, incomingTransaction.Data)
+	if !dontSendResponse {
+		trResponse := NewTransaction(0x11,
+			utils.PublicKeyToAddress(&c.privateKey.PublicKey),
+			srcAddress,
+			incomingTransaction.TransactionId,
+			incomingTransaction.SessionId,
+			0,
+			len(resp),
+			generatedLocalCheque,
+			resp)
+
+		offset := 0
+		blockSize := XchgMaxFrameSize
+		for offset < len(trResponse.Data) {
+			currentBlockSize := blockSize
+			restDataLen := len(trResponse.Data) - offset
+			if restDataLen < currentBlockSize {
+				currentBlockSize = restDataLen
+			}
+
+			blockTransaction := NewTransaction(0x11,
 				utils.PublicKeyToAddress(&c.privateKey.PublicKey),
 				srcAddress,
-				incomingTransaction.TransactionId,
-				incomingTransaction.SessionId,
-				0,
+				trResponse.TransactionId,
+				trResponse.SessionId,
+				offset,
 				len(resp),
-				generatedLocalCheque,
-				resp)
+				trResponse.Cheque,
+				trResponse.Data[offset:offset+currentBlockSize])
 
-			offset := 0
-			blockSize := XchgMaxFrameSize
-			for offset < len(trResponse.Data) {
-				currentBlockSize := blockSize
-				restDataLen := len(trResponse.Data) - offset
-				if restDataLen < currentBlockSize {
-					currentBlockSize = restDataLen
-				}
-
-				blockTransaction := NewTransaction(0x11,
-					utils.PublicKeyToAddress(&c.privateKey.PublicKey),
-					srcAddress,
-					trResponse.TransactionId,
-					trResponse.SessionId,
-					offset,
-					len(resp),
-					trResponse.Cheque,
-					trResponse.Data[offset:offset+currentBlockSize])
-
-				blockTransaction.Offset = uint32(offset)
-				blockTransaction.TotalSize = uint32(len(trResponse.Data))
-				blockTransaction.FromLocalNode = incomingTransaction.FromLocalNode
-				responseFrames = append(responseFrames, blockTransaction)
-				offset += currentBlockSize
-			}
+			blockTransaction.Offset = uint32(offset)
+			blockTransaction.TotalSize = uint32(len(trResponse.Data))
+			blockTransaction.FromLocalNode = incomingTransaction.FromLocalNode
+			responseFrames = append(responseFrames, blockTransaction)
+			offset += currentBlockSize
 		}
 	}
+	//}
 	return
 }
 

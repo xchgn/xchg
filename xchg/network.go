@@ -23,7 +23,7 @@
 package xchg
 
 type Network struct {
-	routers []*RouterConnection
+	//routers []*RouterConnection
 }
 
 func NewNetwork() *Network {

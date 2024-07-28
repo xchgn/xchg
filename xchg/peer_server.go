@@ -96,15 +96,10 @@ func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte) (response []byt
 	function := string(data[1 : 1+functionLen])
 	functionParameter := data[1+functionLen:]
 
-	var processor ServerProcessor
+	var callFunc ServerProcessorCall
 	c.mtx.Lock()
-	processor = c.processor
+	callFunc = c.ServerProcessorCall
 	c.mtx.Unlock()
-
-	if processor == nil {
-		response = prepareResponseError(errors.New(ERR_XCHG_SRV_CONN_NOT_IMPL))
-		return
-	}
 
 	var resp []byte
 
@@ -128,7 +123,7 @@ func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte) (response []byt
 		if session != nil {
 			authData = session.authData
 		}
-		resp, err = c.processor.ServerProcessorCall(authData, function, functionParameter)
+		resp, err = callFunc(authData, function, functionParameter)
 	}
 
 	if err != nil {
@@ -182,7 +177,10 @@ func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error
 	}
 
 	authData := parameter[XchgNonceSize:]
-	err = c.processor.ServerProcessorAuth(authData)
+
+	authFunc := c.ServerProcessorAuth
+
+	err = authFunc(authData)
 	if err != nil {
 		return
 	}

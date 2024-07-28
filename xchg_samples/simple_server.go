@@ -41,7 +41,8 @@ type SimpleServer struct {
 func NewSimpleServer(privateKey *ecdsa.PrivateKey) *SimpleServer {
 	var c SimpleServer
 	c.serverConnection = xchg.NewPeer(privateKey, xchg.NewDefaultLogger())
-	c.serverConnection.SetProcessor(&c)
+	c.serverConnection.ServerProcessorAuth = c.ServerProcessorAuth
+	c.serverConnection.ServerProcessorCall = c.ServerProcessorCall
 
 	c.defaultResponse = make([]byte, 10)
 	rand.Read(c.defaultResponse)

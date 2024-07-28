@@ -4,11 +4,15 @@ import (
 	"fmt"
 	"time"
 
+	samplesinglecall "github.com/xchgn/xchg/samples/sample_single_call"
 	"github.com/xchgn/xchg/utils"
 	"github.com/xchgn/xchg/xchg_samples"
 )
 
 func main() {
+	samplesinglecall.Run()
+	return
+
 	count := 0
 	errs := 0
 
