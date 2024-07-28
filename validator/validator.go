@@ -43,7 +43,7 @@ type Validator struct {
 	privateKey *ecdsa.PrivateKey
 	mtx        sync.Mutex
 	routers    []*RouterInfo
-	routersMap map[string]*RouterInfo
+	//routersMap map[string]*RouterInfo
 
 	srv *http.Server
 	err error
@@ -146,15 +146,16 @@ func (c *Validator) processRegisterRouter(w http.ResponseWriter, r *http.Request
 
 	c.declareRouter(&router)
 
-	if err != nil {
+	/*if err != nil {
 		w.WriteHeader(500)
 		b := []byte(err.Error())
 		_, _ = w.Write(b)
 		return
-	}
+	}*/
 }
 
 func (c *Validator) declareRouter(routerInfo *RouterInfo) {
+	_ = routerInfo
 	c.mtx.Lock()
 	defer c.mtx.Unlock()
 }
