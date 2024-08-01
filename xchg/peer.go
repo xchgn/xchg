@@ -95,9 +95,6 @@ type Peer struct {
 
 	lastPurgeSessionsTime time.Time
 
-	httpServer1 *router.HttpServer
-	httpServer2 *router.HttpServer
-
 	router1 *router.Router
 }
 
@@ -200,9 +197,6 @@ func (c *Peer) Start() (err error) {
 	c.router1 = router.NewRouter()
 	c.router1.Start()
 
-	c.httpServer1 = router.NewHttpServer()
-	c.httpServer1.Start(c.router1, 8084)
-
 	go c.thWork()
 	//go c.thUDP()
 	return
@@ -229,16 +223,6 @@ func (c *Peer) Stop() (err error) {
 	if c.router1 != nil {
 		c.router1.Stop()
 		c.router1 = nil
-	}
-
-	if c.httpServer1 != nil {
-		c.httpServer1.Stop()
-		c.httpServer1 = nil
-	}
-
-	if c.httpServer2 != nil {
-		c.httpServer2.Stop()
-		c.httpServer2 = nil
 	}
 
 	dtBegin := time.Now()

@@ -62,6 +62,8 @@ type Router struct {
 	lastDebugInfo []byte
 	lastStatInfo  []byte
 
+	httpServer *HttpServer
+
 	clearAddressesLastDT time.Time
 }
 
@@ -134,10 +136,19 @@ func (c *Router) Start() error {
 
 	go c.thBackgroundOperations()
 
+	c.httpServer = NewHttpServer()
+	c.httpServer.Start(c, 8084)
+
 	return nil
 }
 
 func (c *Router) Stop() error {
+
+	if c.httpServer != nil {
+		c.httpServer.Stop()
+		c.httpServer = nil
+	}
+
 	c.mtx.Lock()
 	if !c.started {
 		c.mtx.Unlock()
@@ -433,9 +444,6 @@ func (c *Router) buildDebugString() {
 
 	//logger.Println("stat", string(bsJson))
 }
-
-const AddressBytesSize = 30
-const AddressSize = int((AddressBytesSize * 8) / 5)
 
 func CheckHash(hash []byte, complexity byte) bool {
 	if len(hash) != 32 {
