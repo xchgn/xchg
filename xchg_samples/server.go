@@ -35,22 +35,21 @@ type Server struct {
 	serverConnection *xchg.Peer
 	privateKey       *ecdsa.PrivateKey
 	accessKey        string
-	processor        func(function string, parameter []byte) (response []byte, err error)
+	processor        func(param *xchg.Param) (response []byte, err error)
 }
 
-func StartServer(privateKey *ecdsa.PrivateKey, accessKey string, processor func(function string, parameter []byte) (response []byte, err error)) *Server {
+func StartServer(privateKey *ecdsa.PrivateKey, accessKey string, processor func(param *xchg.Param) (response []byte, err error)) *Server {
 	var c Server
 	c.privateKey = privateKey
 	c.accessKey = accessKey
-	c.serverConnection = xchg.NewPeer(privateKey, xchg.NewDefaultLogger())
-	c.serverConnection.ServerProcessorAuth = c.ServerProcessorAuth
-	c.serverConnection.ServerProcessorCall = c.ServerProcessorCall
+	c.serverConnection = xchg.NewPeer(privateKey)
+	c.serverConnection.Callback = c.ServerProcessorCall
 	c.processor = processor
-	c.serverConnection.Start(true)
+	c.serverConnection.Start()
 	return &c
 }
 
-func StartServerFast(accessKey string, processor func(function string, parameter []byte) (response []byte, err error)) *Server {
+func StartServerFast(accessKey string, processor func(param *xchg.Param) (response []byte, err error)) *Server {
 	privateKey, _ := utils.GeneratePrivateKey()
 	s := StartServer(privateKey, accessKey, processor)
 	s.privateKey = privateKey
@@ -72,9 +71,10 @@ func (c *Server) ServerProcessorAuth(authData []byte) (err error) {
 	return errors.New(xchg.ERR_XCHG_ACCESS_DENIED)
 }
 
-func (c *Server) ServerProcessorCall(authData []byte, function string, parameter []byte) (response []byte, err error) {
+func (c *Server) ServerProcessorCall(param *xchg.Param) (response []byte, err error) {
 	if c.processor != nil {
-		return c.processor(function, parameter)
+
+		return c.processor(param)
 	}
 	return nil, errors.New("not implemented")
 }

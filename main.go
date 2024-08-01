@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	samplesinglecall "github.com/xchgn/xchg/samples/sample_single_call"
+	samplebigframes "github.com/xchgn/xchg/samples/sample_big_frames"
 	"github.com/xchgn/xchg/utils"
 	"github.com/xchgn/xchg/xchg_samples"
 )
 
 func main() {
-	samplesinglecall.Run()
+	samplebigframes.Run()
 	return
 
 	count := 0

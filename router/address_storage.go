@@ -36,7 +36,7 @@ type Storage struct {
 
 func NewStorage() *Storage {
 	var c Storage
-	c.maxMessages = 10000
+	c.maxMessages = 100000000
 	c.messages = make([]*Message, 0, c.maxMessages+1)
 	c.TouchDT = time.Now()
 	return &c
@@ -74,6 +74,7 @@ func (c *Storage) Put(id uint64, frame []byte) {
 }
 
 func (c *Storage) GetMessage(afterId uint64, maxSize uint64) (data []byte, lastId uint64, count int) {
+	//fmt.Println("addressStorage.GetMessage", afterId)
 
 	data = make([]byte, 0)
 	lastId = afterId

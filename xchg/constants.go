@@ -23,12 +23,13 @@
 package xchg
 
 const (
-	XchgMaxFrameSize  = 16 * 1024
-	XchgSignatureSize = 65
-	XchgPublicKeySize = 65
-	XchgAddressSize   = 20
-	XchgNonceSize     = 16
-	XchgAesKeySize    = 32
+	XchgMaxFrameSize       = 1000 * 100
+	XchgMaxTransactionSize = 12 * 1024 * 1024
+	XchgSignatureSize      = 65
+	XchgPublicKeySize      = 65
+	XchgAddressSize        = 20
+	XchgNonceSize          = 16
+	XchgAesKeySize         = 32
 
 	// Cheque
 	XchgChequeDataSize = 8 + 20 + 8

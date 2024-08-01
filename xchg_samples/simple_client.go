@@ -37,8 +37,8 @@ type SimpleClient struct {
 func NewSimpleClient(address common.Address) *SimpleClient {
 	var c SimpleClient
 	c.address = address
-	c.client = xchg.NewPeer(nil, xchg.NewDefaultLogger())
-	c.client.Start(false)
+	c.client = xchg.NewPeer(nil)
+	c.client.Start()
 	return &c
 }
 

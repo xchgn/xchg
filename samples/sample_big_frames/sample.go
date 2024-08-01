@@ -1,6 +1,7 @@
-package samplesinglecall
+package samplebigframes
 
 import (
+	"crypto/rand"
 	"fmt"
 	"time"
 
@@ -11,20 +12,27 @@ import (
 func Run() {
 	serverPrivateKey, _ := utils.GeneratePrivateKey()
 	s := xchg.StartServerPeer(serverPrivateKey, func(param *xchg.Param) (response []byte, err error) {
-		response = []byte("DATA")
+		if param.Function == "" {
+			return nil, nil
+		}
+		data := make([]byte, 10*1000000)
+		rand.Read(data[:])
+		response = data
 		return
 	})
 
 	///////////////////////////////////////////////
 	// Make client
 	c := xchg.StartClientPeer()
-	resultBS, err := c.Call(s.Address(), "", "", nil, 2*time.Second)
+	for i := 0; i < 1; i++ {
+		resultBS, err := c.Call(s.Address(), "", "data", nil, 10*time.Second)
 
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+		fmt.Println("Success:", resultBS[:4], len(resultBS))
 	}
-	fmt.Println("Success:", string(resultBS))
 
 	c.Stop()
 	s.Stop()

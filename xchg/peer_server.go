@@ -96,9 +96,9 @@ func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte) (response []byt
 	function := string(data[1 : 1+functionLen])
 	functionParameter := data[1+functionLen:]
 
-	var callFunc ServerProcessorCall
+	var callFunc CallbackFunc
 	c.mtx.Lock()
-	callFunc = c.ServerProcessorCall
+	callFunc = c.Callback
 	c.mtx.Unlock()
 
 	var resp []byte
@@ -123,7 +123,11 @@ func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte) (response []byt
 		if session != nil {
 			authData = session.authData
 		}
-		resp, err = callFunc(authData, function, functionParameter)
+		var p Param
+		p.AuthData = authData
+		p.Function = function
+		p.Parameter = functionParameter
+		resp, err = callFunc(&p)
 	}
 
 	if err != nil {
@@ -178,9 +182,11 @@ func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error
 
 	authData := parameter[XchgNonceSize:]
 
-	authFunc := c.ServerProcessorAuth
+	callbackFunc := c.Callback
 
-	err = authFunc(authData)
+	var p Param
+	p.AuthData = authData
+	_, err = callbackFunc(&p)
 	if err != nil {
 		return
 	}

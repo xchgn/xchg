@@ -113,6 +113,7 @@ const (
 func NewRouter() *Router {
 	var c Router
 	c.addresses = make(map[string]*Storage)
+	c.nextId = 1
 
 	c.statLastDT = time.Now()
 	c.clearAddressesLastDT = time.Now()
@@ -246,6 +247,23 @@ func (c *Router) Put(frame []byte) {
 	var ok bool
 	var addressStorage *Storage
 
+	tp := ""
+	{
+		switch frame[4] {
+		case 0x10:
+			tp = "CALL_REQ"
+		case 0x11:
+			tp = "CALL_RES"
+		case 0x20:
+			tp = "PUB_REQ"
+		case 0x21:
+			tp = "PUB_RES"
+		}
+	}
+	_ = tp
+
+	//fmt.Println("ROUTER PUT:", frame)
+
 	addressDestBS := frame[49:69]
 	addressDest, _ := utils.BytesToAddress(addressDestBS)
 	//fmt.Println("Router::Put", addressDest.Hex())
@@ -261,6 +279,8 @@ func (c *Router) Put(frame []byte) {
 	c.mtx.Unlock()
 
 	addressStorage.Put(id, frame)
+	//fmt.Println("ROUTER PUT:", tp, len(frame), id)
+
 	c.stat.FramesIn++
 	c.stat.BytesIn += len(frame)
 }

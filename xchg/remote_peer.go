@@ -109,9 +109,14 @@ func (c *RemotePeer) processFrame11(routerHost string, frame []byte) {
 		return
 	}
 
+	if transaction.TotalSize > XchgMaxTransactionSize {
+		fmt.Println("Error: transaction.TotalSize > XchgMaxTransactionSize")
+		return
+	}
+
 	c.mtx.Lock()
 	if t, ok := c.outgoingTransactions[transaction.TransactionId]; ok {
-		if transaction.Err == nil && transaction.TotalSize < 1024*1024 {
+		if transaction.Err == nil {
 			t.AppendReceivedData(transaction)
 		} else {
 			t.Result = transaction.Data
@@ -153,6 +158,18 @@ func (c *RemotePeer) Call(network *Network, function string, data []byte, timeou
 		copy(transaction.Data, addressBS)
 		addr := network.GetRouterAddr()
 		c.httpCall(addr, "w", transaction.Marshal())
+
+		// Wait for public key for 1 second
+		for i := 0; i < 100; i++ {
+			time.Sleep(10 * time.Millisecond)
+			if c.remotePublicKey != nil {
+				break
+			}
+		}
+	}
+
+	if c.remotePublicKey == nil {
+		return nil, errors.New("NO PUBLIC KEY")
 	}
 
 	if sessionId == 0 {
@@ -333,6 +350,8 @@ func (c *RemotePeer) regularCall(network *Network, function string, data []byte,
 		return
 	}
 
+	fmt.Println("Received result:", len(result))
+
 	if encryptedWithAES {
 		result, err = utils.DecryptAESGCM(result, aesKey)
 		if err != nil {
@@ -507,10 +526,12 @@ func (c *RemotePeer) httpCall(routerHost string, function string, frame []byte) 
 	writer.Close()
 
 	addr := "http://" + routerHost
+	uri := addr + "/api/" + function
 
-	response, err := c.Post(addr+"/api/"+function, writer.FormDataContentType(), &body, addr)
+	response, err := c.Post(uri, writer.FormDataContentType(), &body, addr)
 
 	if err != nil {
+		fmt.Println("HTTP error:", err)
 		return
 	} else {
 		var content []byte

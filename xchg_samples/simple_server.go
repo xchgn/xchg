@@ -40,9 +40,8 @@ type SimpleServer struct {
 
 func NewSimpleServer(privateKey *ecdsa.PrivateKey) *SimpleServer {
 	var c SimpleServer
-	c.serverConnection = xchg.NewPeer(privateKey, xchg.NewDefaultLogger())
-	c.serverConnection.ServerProcessorAuth = c.ServerProcessorAuth
-	c.serverConnection.ServerProcessorCall = c.ServerProcessorCall
+	c.serverConnection = xchg.NewPeer(privateKey)
+	c.serverConnection.Callback = c.ServerProcessorCall
 
 	c.defaultResponse = make([]byte, 10)
 	rand.Read(c.defaultResponse)
@@ -50,7 +49,7 @@ func NewSimpleServer(privateKey *ecdsa.PrivateKey) *SimpleServer {
 }
 
 func (c *SimpleServer) Start() {
-	c.serverConnection.Start(true)
+	c.serverConnection.Start()
 }
 
 func (c *SimpleServer) Stop() {
@@ -64,8 +63,8 @@ func (c *SimpleServer) ServerProcessorAuth(authData []byte) (err error) {
 	return errors.New(xchg.ERR_XCHG_ACCESS_DENIED)
 }
 
-func (c *SimpleServer) ServerProcessorCall(authData []byte, function string, parameter []byte) (response []byte, err error) {
-	switch function {
+func (c *SimpleServer) ServerProcessorCall(param *xchg.Param) (response []byte, err error) {
+	switch param.Function {
 	case "version":
 		//response = []byte("simple server 2.42 0123456789|0123456789|0123456789|0123456789")
 		//response = make([]byte, 3000)
@@ -80,7 +79,7 @@ func (c *SimpleServer) ServerProcessorCall(authData []byte, function string, par
 			B int
 		}
 		var request InputStruct
-		err = json.Unmarshal(parameter, &request)
+		err = json.Unmarshal(param.Parameter, &request)
 		if err != nil {
 			return
 		}

@@ -51,8 +51,13 @@ type Logger interface {
 	Println(v ...interface{})
 }
 
-type ServerProcessorCall func(authData []byte, function string, parameter []byte) (response []byte, err error)
-type ServerProcessorAuth func(authData []byte) (err error)
+type Param struct {
+	AuthData  []byte
+	Function  string
+	Parameter []byte
+}
+
+type CallbackFunc func(param *Param) (response []byte, err error)
 
 type Peer struct {
 	mtx        sync.Mutex
@@ -85,10 +90,8 @@ type Peer struct {
 	sessionsById         map[uint64]*Session
 	authNonces           *Nonces
 	nextSessionId        uint64
-	//processor            ServerProcessor
 
-	ServerProcessorCall ServerProcessorCall
-	ServerProcessorAuth ServerProcessorAuth
+	Callback CallbackFunc
 
 	lastPurgeSessionsTime time.Time
 
@@ -125,9 +128,9 @@ const (
 	PEER_UDP_END_PORT   = 42500
 )
 
-func NewPeer(privateKey *ecdsa.PrivateKey, logger Logger) *Peer {
+func NewPeer(privateKey *ecdsa.PrivateKey) *Peer {
 	var c Peer
-	c.logger = logger
+	c.logger = NewDefaultLogger()
 	c.remotePeers = make(map[string]*RemotePeer)
 	c.incomingTransactions = make(map[string]*Transaction)
 	c.authNonces = NewNonces(100)
@@ -167,7 +170,20 @@ func NewPeer(privateKey *ecdsa.PrivateKey, logger Logger) *Peer {
 	return &c
 }
 
-func (c *Peer) Start(enableLocalRouter bool) (err error) {
+func StartServerPeer(privateKey *ecdsa.PrivateKey, callback CallbackFunc) *Peer {
+	c := NewPeer(privateKey)
+	c.Callback = callback
+	c.Start()
+	return c
+}
+
+func StartClientPeer() *Peer {
+	c := NewPeer(nil)
+	c.Start()
+	return c
+}
+
+func (c *Peer) Start() (err error) {
 	c.logger.Println("Peer::Start")
 	c.mtx.Lock()
 	if c.started {
@@ -181,14 +197,11 @@ func (c *Peer) Start(enableLocalRouter bool) (err error) {
 
 	c.updateHttpPeers()
 
-	if enableLocalRouter {
+	c.router1 = router.NewRouter()
+	c.router1.Start()
 
-		c.router1 = router.NewRouter()
-		c.router1.Start()
-
-		c.httpServer1 = router.NewHttpServer()
-		c.httpServer1.Start(c.router1, 8084)
-	}
+	c.httpServer1 = router.NewHttpServer()
+	c.httpServer1.Start(c.router1, 8084)
 
 	go c.thWork()
 	//go c.thUDP()
@@ -344,7 +357,7 @@ func (c *Peer) getFramesFromRouter(router string) {
 		c.mtx.Unlock()
 		getMessageRequest := make([]byte, 16+30)
 		binary.LittleEndian.PutUint64(getMessageRequest[0:], fromMessageId)
-		binary.LittleEndian.PutUint64(getMessageRequest[8:], 1024*1024)
+		binary.LittleEndian.PutUint64(getMessageRequest[8:], 10*1024*1024)
 		copy(getMessageRequest[16:], c.localAddressBS)
 
 		//fmt.Println("GETTING from", router)

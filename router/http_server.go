@@ -141,6 +141,7 @@ func (c *HttpServer) processR(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+	// fmt.Println("ROUTER processR", dataBS)
 
 	//addrTemp := base32.StdEncoding.EncodeToString(dataBS[16 : 16+30])
 
@@ -171,6 +172,7 @@ func (c *HttpServer) processR(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(b)
 		return
 	}
+	//fmt.Println("ROUTER read result:", len(result))
 	_, _ = w.Write([]byte(result))
 }
 

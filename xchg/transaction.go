@@ -158,7 +158,7 @@ func (c *Transaction) String() string {
 }
 
 func (c *Transaction) AppendReceivedData(transaction *Transaction) {
-	if len(c.ReceivedFrames) < 1000 {
+	if len(c.ReceivedFrames) < 100000 {
 		found := false
 		for _, trvTr := range c.ReceivedFrames {
 			if trvTr.Offset == transaction.Offset {
@@ -168,6 +168,8 @@ func (c *Transaction) AppendReceivedData(transaction *Transaction) {
 		if !found {
 			c.ReceivedFrames = append(c.ReceivedFrames, transaction)
 		}
+	} else {
+		fmt.Println("len(c.ReceivedFrames) < 1000")
 	}
 
 	if transaction.FromLocalNode {
