@@ -103,14 +103,14 @@ func (c *HttpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c.processFile(w, r)
 }
 
-func (c *HttpServer) processDebug(w http.ResponseWriter, r *http.Request) {
+func (c *HttpServer) processDebug(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	c.server.DeclareHttpRequestD()
 	result := []byte(c.server.DebugString())
 	_, _ = w.Write(result)
 }
 
-func (c *HttpServer) processStat(w http.ResponseWriter, r *http.Request) {
+func (c *HttpServer) processStat(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	c.server.DeclareHttpRequestS()
 	result := []byte(c.server.StatString())
@@ -166,12 +166,12 @@ func (c *HttpServer) processR(w http.ResponseWriter, r *http.Request) {
 	resultStr := base64.StdEncoding.EncodeToString(resultBS)
 
 	result := []byte(resultStr)
-	if err != nil {
+	/*if err != nil {
 		w.WriteHeader(500)
 		b := []byte(err.Error())
 		_, _ = w.Write(b)
 		return
-	}
+	}*/
 	//fmt.Println("ROUTER read result:", len(result))
 	_, _ = w.Write([]byte(result))
 }
@@ -209,9 +209,9 @@ func (c *HttpServer) processW(w http.ResponseWriter, r *http.Request) {
 			if offset+frameLen <= len(dataBS) {
 				//fmt.Println("Router Write")
 				c.server.Put(dataBS[offset : offset+frameLen])
-				if err != nil {
+				/*if err != nil {
 					return
-				}
+				}*/
 			} else {
 				break
 			}
@@ -221,12 +221,12 @@ func (c *HttpServer) processW(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err != nil {
+	/*if err != nil {
 		w.WriteHeader(500)
 		b := []byte(err.Error())
 		_, _ = w.Write(b)
 		return
-	}
+	}*/
 }
 
 func SplitRequest(path string) []string {
@@ -235,7 +235,7 @@ func SplitRequest(path string) []string {
 	})
 }
 
-func (c *HttpServer) processFile(w http.ResponseWriter, r *http.Request) {
+func (c *HttpServer) processFile(w http.ResponseWriter, _ *http.Request) {
 	c.server.DeclareHttpRequestF()
 	w.Write([]byte("wrong request"))
 }
