@@ -31,5 +31,4 @@ func NewDefaultLogger() *DefaultLogger {
 }
 
 func (c *DefaultLogger) Println(args ...interface{}) {
-
 }

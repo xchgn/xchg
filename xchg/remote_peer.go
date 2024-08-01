@@ -109,7 +109,7 @@ func (c *RemotePeer) processFrame11(routerHost string, frame []byte) {
 		return
 	}
 
-	if transaction.TotalSize > XchgMaxTransactionSize {
+	if transaction.TotalSize > XchgMaxTransactionSize+1024 {
 		fmt.Println("Error: transaction.TotalSize > XchgMaxTransactionSize")
 		return
 	}
@@ -349,8 +349,6 @@ func (c *RemotePeer) regularCall(network *Network, function string, data []byte,
 		err = errors.New(ERR_XCHG_CL_CONN_CALL_ERR + ":" + err.Error())
 		return
 	}
-
-	fmt.Println("Received result:", len(result))
 
 	if encryptedWithAES {
 		result, err = utils.DecryptAESGCM(result, aesKey)

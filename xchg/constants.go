@@ -23,8 +23,8 @@
 package xchg
 
 const (
-	XchgMaxFrameSize       = 1000 * 100
-	XchgMaxTransactionSize = 12 * 1024 * 1024
+	XchgMaxFrameSize       = 64 * 1024
+	XchgMaxTransactionSize = 1024 * 1024
 	XchgSignatureSize      = 65
 	XchgPublicKeySize      = 65
 	XchgAddressSize        = 20
