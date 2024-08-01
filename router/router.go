@@ -325,28 +325,6 @@ func (c *Router) GetMessages(frame []byte) (response []byte, count int, err erro
 	return
 }
 
-/*func (c *Router) resolveAddress(address string) (nativeAddress string, err error) {
-	if len(address) < 1 {
-		err = errors.New("empty address")
-		return
-	}
-
-	if address[0] == '#' {
-		nativeAddress = address
-		return
-	}
-
-	if strings.HasSuffix(address, ".xchg") {
-		if address == "42.xchg" {
-			nativeAddress = "kqfc2fwogggtlsf7vnh46hhgdjmheiqvqycapj2f2xe2d5jz"
-			return
-		}
-	}
-
-	err = errors.New("unknown address")
-	return
-}*/
-
 func (c *Router) DebugString() (result []byte) {
 	c.mtx.Lock()
 	result = make([]byte, len(c.lastDebugInfo))
