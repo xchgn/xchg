@@ -33,7 +33,7 @@ func Run() {
 	///////////////////////////////////////////////
 	// Make client
 	c := xchg.StartClientPeer()
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 1; i++ {
 		resultBS, err := c.Call(s.Address(), "", "data", nil, 2*time.Second)
 		if err != nil {
 			fmt.Println("Error:", err)

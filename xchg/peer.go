@@ -192,22 +192,16 @@ func (c *Peer) Start() (err error) {
 
 	c.localAddressBS = utils.PublicKeyToAddress(&c.privateKey.PublicKey).Bytes()
 
-	c.updateHttpPeers()
-
 	c.router1 = router.NewRouter()
 	c.router1.Start()
 
 	go c.thWork()
-	//go c.thUDP()
+
 	return
 }
 
-func (c *Peer) updateHttpPeers() {
-	//return
-}
-
 func (c *Peer) Stop() (err error) {
-	c.logger.Println("Peer::Stop")
+	fmt.Println("Peer::Stop")
 
 	c.mtx.Lock()
 	if !c.started {
@@ -227,15 +221,17 @@ func (c *Peer) Stop() (err error) {
 
 	dtBegin := time.Now()
 	for started {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 		c.mtx.Lock()
 		started = c.started
 		c.mtx.Unlock()
 
 		if time.Since(dtBegin) > 1000*time.Millisecond {
+			fmt.Println("TIMEOUT")
 			break
 		}
 	}
+
 	c.mtx.Lock()
 	started = c.started
 	c.mtx.Unlock()
@@ -255,18 +251,11 @@ func (c *Peer) Network() *Network {
 	return c.network
 }
 
-/*func (c *Peer) SetProcessor(processor ServerProcessor) {
-	c.processor = processor
-}*/
-
 func (c *Peer) thWork() {
 	c.started = true
-	lastNetworkUpdateDT := time.Now()
 	lastPurgeSessionsDT := time.Now()
 	lastStatDT := time.Now()
-	lastDeclareUDPPointDT := time.Now()
 	for {
-		// Stopping
 		c.mtx.Lock()
 		stopping := c.stopping
 		c.mtx.Unlock()
@@ -281,25 +270,14 @@ func (c *Peer) thWork() {
 			lastPurgeSessionsDT = time.Now()
 		}
 
-		if time.Since(lastNetworkUpdateDT) > 30*time.Second {
-			c.updateHttpPeers()
-			lastNetworkUpdateDT = time.Now()
-		}
-
 		if time.Since(lastStatDT) > 10*time.Second {
 			c.fixStat()
 			lastStatDT = time.Now()
 		}
 
-		if time.Since(lastDeclareUDPPointDT) > 10*time.Second {
-			//c.declareUDPPoint()
-			lastDeclareUDPPointDT = time.Now()
-		}
-
 		time.Sleep(10 * time.Millisecond)
-
-		//fmt.Println(c.network)
 	}
+	c.started = false
 }
 
 func (c *Peer) fixStat() {
@@ -381,7 +359,6 @@ func (c *Peer) getFramesFromRouter(router string) {
 					break
 				}
 			}
-			//c.logger.Println("Received frames:", framesCount)
 			if len(responses) > 0 {
 				for _, f := range responses {
 					c.send(f.Marshal())
