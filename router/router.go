@@ -168,13 +168,14 @@ func (c *Router) Stop() error {
 		if !started {
 			break
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 
 	return nil
 }
 
 func (c *Router) thBackgroundOperations() {
+	c.started = true
 	for {
 		c.mtx.Lock()
 		stopping := c.stopping
@@ -186,6 +187,7 @@ func (c *Router) thBackgroundOperations() {
 		c.thStatistics()
 		c.thClearAddresses()
 	}
+	c.started = false
 }
 
 func (c *Router) thStatistics() {
