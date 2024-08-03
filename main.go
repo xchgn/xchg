@@ -1,9 +1,9 @@
 package main
 
 import (
-	samplebigframes "github.com/xchgn/xchg/samples/sample_big_frames"
+	samplecascade "github.com/xchgn/xchg/samples/sample_cascade"
 )
 
 func main() {
-	samplebigframes.Run()
+	samplecascade.Run()
 }

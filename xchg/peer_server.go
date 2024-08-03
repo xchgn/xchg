@@ -127,6 +127,8 @@ func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte) (response []byt
 		p.AuthData = authData
 		p.Function = function
 		p.Parameter = functionParameter
+		p.LocalPeer = c
+		p.RemoteAddress = utils.PublicKeyToAddress(session.remotePublicKey)
 		resp, err = callFunc(&p)
 	}
 
@@ -185,6 +187,8 @@ func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error
 	callbackFunc := c.Callback
 
 	var p Param
+	p.LocalPeer = c
+	p.RemoteAddress = utils.PublicKeyToAddress(remotePublicKey)
 	p.AuthData = authData
 	_, err = callbackFunc(&p)
 	if err != nil {
@@ -201,6 +205,7 @@ func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error
 	session.aesKey = make([]byte, XchgAesKeySize)
 	session.snakeCounter = NewSnakeCounter(100, 0)
 	session.authData = authData
+	session.remotePublicKey = remotePublicKey
 	rand.Read(session.aesKey)
 	c.sessionsById[sessionId] = session
 	response = make([]byte, 8+XchgAesKeySize)

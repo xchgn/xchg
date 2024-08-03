@@ -52,9 +52,11 @@ type Logger interface {
 }
 
 type Param struct {
-	AuthData  []byte
-	Function  string
-	Parameter []byte
+	LocalPeer     *Peer
+	RemoteAddress common.Address
+	AuthData      []byte
+	Function      string
+	Parameter     []byte
 }
 
 type CallbackFunc func(param *Param) (response []byte, err error)
@@ -113,11 +115,12 @@ const (
 )
 
 type Session struct {
-	id           uint64
-	aesKey       []byte
-	authData     []byte
-	lastAccessDT time.Time
-	snakeCounter *SnakeCounter
+	id              uint64
+	aesKey          []byte
+	authData        []byte
+	remotePublicKey *ecdsa.PublicKey
+	lastAccessDT    time.Time
+	snakeCounter    *SnakeCounter
 }
 
 const (
@@ -328,42 +331,45 @@ func (c *Peer) getFramesFromRouter(router string) {
 			fmt.Println("HTTP Error: ", err)
 			return
 		}
+
 		if len(res) >= 8 {
 			lastReceivedMessageId := binary.LittleEndian.Uint64(res[0:])
-
 			c.mtx.Lock()
-
 			c.lastReceivedMessageId[router] = lastReceivedMessageId
 			c.mtx.Unlock()
+			go c.processFramesFromInternet(res, router)
+		}
+	}
 
-			offset := 8
+}
 
-			responses := make([]*Transaction, 0)
-			responsesCount := 0
+func (c *Peer) processFramesFromInternet(res []byte, router string) {
+	offset := 8
 
-			framesCount := 0
+	responses := make([]*Transaction, 0)
+	responsesCount := 0
 
-			for offset < len(res) {
-				if offset+69 <= len(res) {
-					frameLen := int(binary.LittleEndian.Uint32(res[offset:]))
-					if offset+frameLen <= len(res) {
-						framesCount++
-						responseFrames := c.processFrame(router, res[offset:offset+frameLen])
-						responses = append(responses, responseFrames...)
-						responsesCount += len(responseFrames)
-					} else {
-						break
-					}
-					offset += frameLen
-				} else {
-					break
-				}
+	framesCount := 0
+
+	for offset < len(res) {
+		if offset+69 <= len(res) {
+			frameLen := int(binary.LittleEndian.Uint32(res[offset:]))
+			if offset+frameLen <= len(res) {
+				framesCount++
+				responseFrames := c.processFrame(router, res[offset:offset+frameLen])
+				responses = append(responses, responseFrames...)
+				responsesCount += len(responseFrames)
+			} else {
+				break
 			}
-			if len(responses) > 0 {
-				for _, f := range responses {
-					c.send(f.Marshal())
-				}
-			}
+			offset += frameLen
+		} else {
+			break
+		}
+	}
+	if len(responses) > 0 {
+		for _, f := range responses {
+			c.send(f.Marshal())
 		}
 	}
 
