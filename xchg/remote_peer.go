@@ -319,7 +319,7 @@ func (c *RemotePeer) regularCall(network *Network, function string, data []byte,
 		frame[8] = byte(len(function))
 		copy(frame[9:], function)
 		copy(frame[9+len(function):], data)
-		frame = utils.PackBytes(frame)
+		frame = utils.Pack(frame)
 		frame, err = utils.EncryptAESGCM(frame, aesKey)
 		if err != nil {
 			c.Reset()
@@ -357,12 +357,7 @@ func (c *RemotePeer) regularCall(network *Network, function string, data []byte,
 			err = errors.New(ERR_XCHG_CL_CONN_CALL_DECRYPT + ":" + err.Error())
 			return
 		}
-		result, err = utils.UnpackBytes(result)
-		if err != nil {
-			c.Reset()
-			err = errors.New(ERR_XCHG_CL_CONN_CALL_UNPACK + ":" + err.Error())
-			return
-		}
+		result = utils.Unpack(result)
 	}
 
 	if len(result) < 1 {
