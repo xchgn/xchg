@@ -30,6 +30,31 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/ecies"
 )
 
+// SignData signs the given data using the provided private key.
+func SignData(privateKey *ecdsa.PrivateKey, data []byte) ([]byte, error) {
+	hash := crypto.Keccak256Hash(data)
+	signature, err := crypto.Sign(hash.Bytes(), privateKey)
+	if err != nil {
+		return nil, err
+	}
+	return signature, nil
+}
+
+// VerifySignature verifies the signature of the given data using the provided public key.
+func VerifySignature(pubKey *ecdsa.PublicKey, data []byte, signature []byte) bool {
+	hash := crypto.Keccak256Hash(data)
+	return crypto.VerifySignature(crypto.FromECDSAPub(pubKey), hash.Bytes(), signature[:len(signature)-1]) // -1 to remove the recovery id
+}
+
+func RecoverPublicKeyFromSignature(message, signature []byte) (*ecdsa.PublicKey, error) {
+	publicKeyAsBytes, err := crypto.Ecrecover(message, signature)
+	if err != nil {
+		return nil, err
+	}
+	recoveredPubKey, err := crypto.UnmarshalPubkey(publicKeyAsBytes)
+	return recoveredPubKey, err
+}
+
 // EncryptBytesWithPublicKey encrypts data with the given ECIES public key.
 func EncryptBytesWithPublicKey(pubKey *ecdsa.PublicKey, data []byte) ([]byte, error) {
 	eciesPubKey := ecies.ImportECDSAPublic(pubKey)
@@ -48,29 +73,4 @@ func DecryptBytesWithPrivateKey(privKey *ecdsa.PrivateKey, encryptedData []byte)
 		return nil, err
 	}
 	return decryptedData, nil
-}
-
-func RecoverPublicKeyFromSignature(message, signature []byte) (*ecdsa.PublicKey, error) {
-	publicKeyAsBytes, err := crypto.Ecrecover(message, signature)
-	if err != nil {
-		return nil, err
-	}
-	recoveredPubKey, err := crypto.UnmarshalPubkey(publicKeyAsBytes)
-	return recoveredPubKey, err
-}
-
-// SignData signs the given data using the provided private key.
-func SignData(privateKey *ecdsa.PrivateKey, data []byte) ([]byte, error) {
-	hash := crypto.Keccak256Hash(data)
-	signature, err := crypto.Sign(hash.Bytes(), privateKey)
-	if err != nil {
-		return nil, err
-	}
-	return signature, nil
-}
-
-// VerifySignature verifies the signature of the given data using the provided public key.
-func VerifySignature(pubKey *ecdsa.PublicKey, data []byte, signature []byte) bool {
-	hash := crypto.Keccak256Hash(data)
-	return crypto.VerifySignature(crypto.FromECDSAPub(pubKey), hash.Bytes(), signature[:len(signature)-1]) // -1 to remove the recovery id
 }
