@@ -357,7 +357,13 @@ func (c *RemotePeer) regularCall(network *Network, function string, data []byte,
 			err = errors.New(ERR_XCHG_CL_CONN_CALL_DECRYPT + ":" + err.Error())
 			return
 		}
-		result = utils.Unpack(result)
+		result, err = utils.Unpack(result)
+		if err != nil {
+			c.Reset()
+			err = errors.New(ERR_XCHG_CL_CONN_CALL_UNPACK + ":" + err.Error())
+			return
+		}
+
 	}
 
 	if len(result) < 1 {

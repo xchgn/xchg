@@ -62,7 +62,11 @@ func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte) (response []byt
 			response = prepareResponseError(errors.New(ERR_XCHG_SRV_CONN_DECR + ":" + err.Error()))
 			return
 		}
-		data = utils.Unpack(data)
+		data, err = utils.Unpack(data)
+		if err != nil {
+			response = prepareResponseError(errors.New(ERR_XCHG_SRV_CONN_UNPACK + ":" + err.Error()))
+			return
+		}
 		if len(data) < 9 {
 			response = prepareResponseError(errors.New(ERR_XCHG_SRV_CONN_WRONG_LEN9))
 			return

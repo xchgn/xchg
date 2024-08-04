@@ -29,10 +29,13 @@ func TestPack(t *testing.T) {
 		t.Log("Data:", testCase.data)
 		packedData := utils.Pack(testCase.data)
 		t.Log("Packed:", packedData)
-		unpackedData := utils.Unpack(packedData)
+		unpackedData, err := utils.Unpack(packedData)
+		if err != nil {
+			t.Error("error", err)
+		}
 		t.Log("Unpacked:", unpackedData)
 		if !bytes.Equal(testCase.data, unpackedData) {
-			t.Errorf("error")
+			t.Error("error")
 		}
 	}
 }

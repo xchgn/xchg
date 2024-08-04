@@ -36,9 +36,12 @@ func Pack(data []byte) []byte {
 	return buf.Bytes()
 }
 
-func Unpack(data []byte) []byte {
+func Unpack(data []byte) (result []byte, err error) {
 	buf := bytes.NewBuffer(data)
-	r, _ := gzip.NewReader(buf)
-	result, _ := io.ReadAll(r)
-	return result
+	r, err := gzip.NewReader(buf)
+	if err != nil {
+		return
+	}
+	result, err = io.ReadAll(r)
+	return
 }
