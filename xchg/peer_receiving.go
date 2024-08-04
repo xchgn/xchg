@@ -5,6 +5,19 @@ import (
 	"fmt"
 )
 
+func (c *Peer) getFramesFromRouters() {
+	c.mtx.Lock()
+	network := c.network
+	c.mtx.Unlock()
+
+	if network == nil {
+		return
+	}
+
+	addr := network.GetRouterAddr()
+	c.getFramesFromRouter(addr)
+}
+
 func (c *Peer) getFramesFromRouter(router string) {
 	c.mtx.Lock()
 	processing := c.gettingFromInternet[router]
@@ -48,7 +61,6 @@ func (c *Peer) getFramesFromRouter(router string) {
 			go c.processFramesFromInternet(res, router)
 		}
 	}
-
 }
 
 func (c *Peer) processFramesFromInternet(res []byte, router string) {
@@ -80,18 +92,4 @@ func (c *Peer) processFramesFromInternet(res []byte, router string) {
 			c.send(f.Marshal())
 		}
 	}
-
-}
-
-func (c *Peer) getFramesFromRouters() {
-	c.mtx.Lock()
-	network := c.network
-	c.mtx.Unlock()
-
-	if network == nil {
-		return
-	}
-
-	addr := network.GetRouterAddr()
-	c.getFramesFromRouter(addr)
 }

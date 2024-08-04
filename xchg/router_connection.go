@@ -31,13 +31,10 @@ type RouterConnection struct {
 }
 
 func (c *RouterConnection) Init() {
-
 }
 
 func (c *RouterConnection) Write() {
-
 }
 
 func (c *RouterConnection) Read() {
-
 }

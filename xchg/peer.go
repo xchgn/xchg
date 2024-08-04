@@ -86,14 +86,6 @@ type Peer struct {
 	router1 *router.Router
 }
 
-type PeerProcessor interface {
-	processFrame(routerHost string, frame []byte) (responseFrames []*Transaction)
-}
-
-const (
-	INPUT_BUFFER_SIZE = 1024 * 1024
-)
-
 type Session struct {
 	id              uint64
 	aesKey          []byte
