@@ -278,7 +278,7 @@ func (c *Router) Put(frame []byte) {
 	//fmt.Println("ROUTER PUT:", frame)
 
 	addressDestBS := frame[49:69]
-	addressDest, _ := utils.BytesToAddress(addressDestBS)
+	addressDest, _ := utils.AddressFromBytes(addressDestBS)
 	//fmt.Println("Router::Put", addressDest.Hex())
 
 	c.mtx.Lock()
@@ -312,7 +312,7 @@ func (c *Router) GetMessages(frame []byte) (response []byte, count int, err erro
 	maxSize := binary.LittleEndian.Uint64(frame[8:])
 	addressSrcBS := frame[16 : 16+20]
 
-	addressSrc, _ := utils.BytesToAddress(addressSrcBS)
+	addressSrc, _ := utils.AddressFromBytes(addressSrcBS)
 
 	c.mtx.Lock()
 	addressStorage, ok = c.addresses[addressSrc.Hex()]

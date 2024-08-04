@@ -44,9 +44,9 @@ type Transaction struct {
 	TotalSize     uint32 // 25
 
 	// 20 bytes - Source Address
-	SrcAddress [utils.AddressBytesSize]byte // 29
+	SrcAddress [XchgAddressSize]byte // 29
 	// 20 bytes - Source Address
-	DestAddress [utils.AddressBytesSize]byte // 49
+	DestAddress [XchgAddressSize]byte // 49
 
 	// Cheque = 101 bytes
 	Cheque *Cheque
@@ -95,12 +95,12 @@ func NewTransaction(frameType byte, srcAddress common.Address, destAddress commo
 }
 
 func (c *Transaction) SrcAddressString() string {
-	address, _ := utils.BytesToAddress(c.SrcAddress[:])
+	address, _ := utils.AddressFromBytes(c.SrcAddress[:])
 	return address.Hex()
 }
 
 func (c *Transaction) DestAddressString() string {
-	address, _ := utils.BytesToAddress(c.DestAddress[:])
+	address, _ := utils.AddressFromBytes(c.DestAddress[:])
 	return address.Hex()
 }
 

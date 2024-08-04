@@ -156,7 +156,7 @@ func (c *Peer) Start() (err error) {
 	}
 	c.mtx.Unlock()
 
-	c.localAddressBS = utils.PublicKeyToAddress(&c.privateKey.PublicKey).Bytes()
+	c.localAddressBS = utils.AddressFromPublicKey(&c.privateKey.PublicKey).Bytes()
 
 	c.router1 = router.NewRouter()
 	c.router1.Start()
@@ -210,7 +210,7 @@ func (c *Peer) Stop() (err error) {
 }
 
 func (c *Peer) Address() common.Address {
-	return utils.PublicKeyToAddress(&c.privateKey.PublicKey)
+	return utils.AddressFromPublicKey(&c.privateKey.PublicKey)
 }
 
 func (c *Peer) Network() *Network {

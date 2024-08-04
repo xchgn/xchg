@@ -145,7 +145,7 @@ func (c *RemotePeer) Call(network *Network, function string, data []byte, timeou
 		generatedLocalCheque := &Cheque{}
 
 		transaction := NewTransaction(XchgFrameGetPublicKeyRequest,
-			utils.PublicKeyToAddress(&c.privateKey.PublicKey),
+			utils.AddressFromPublicKey(&c.privateKey.PublicKey),
 			c.remoteAddress,
 			0,
 			0,
@@ -416,7 +416,7 @@ func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data
 	generatedLocalCheque := &Cheque{}
 
 	// Create transaction
-	t := NewTransaction(FrameTypeCall, utils.PublicKeyToAddress(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, 0, len(data), generatedLocalCheque, data)
+	t := NewTransaction(FrameTypeCall, utils.AddressFromPublicKey(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, 0, len(data), generatedLocalCheque, data)
 	c.outgoingTransactions[transactionId] = t
 	c.mtx.Unlock()
 
@@ -432,7 +432,7 @@ func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data
 			currentBlockSize = restDataLen
 		}
 
-		blockTransaction := NewTransaction(FrameTypeCall, utils.PublicKeyToAddress(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, offset, len(data), generatedLocalCheque, data[offset:offset+currentBlockSize])
+		blockTransaction := NewTransaction(FrameTypeCall, utils.AddressFromPublicKey(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, offset, len(data), generatedLocalCheque, data[offset:offset+currentBlockSize])
 
 		err = c.Send(network, blockTransaction)
 

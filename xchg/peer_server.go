@@ -128,7 +128,7 @@ func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte) (response []byt
 		p.Function = function
 		p.Parameter = functionParameter
 		p.LocalPeer = c
-		p.RemoteAddress = utils.PublicKeyToAddress(session.remotePublicKey)
+		p.RemoteAddress = utils.AddressFromPublicKey(session.remotePublicKey)
 		resp, err = callFunc(&p)
 	}
 
@@ -156,7 +156,7 @@ func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error
 	}
 
 	remotePublicKeyBS := functionParameter[:XchgPublicKeySize]
-	remotePublicKey, err := utils.BytesToPublicKey(remotePublicKeyBS)
+	remotePublicKey, err := utils.PublicKeyFromBytes(remotePublicKeyBS)
 	if err != nil {
 		err = errors.New(INTERNAL_ERROR)
 		return
@@ -188,7 +188,7 @@ func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error
 
 	var p Param
 	p.LocalPeer = c
-	p.RemoteAddress = utils.PublicKeyToAddress(remotePublicKey)
+	p.RemoteAddress = utils.AddressFromPublicKey(remotePublicKey)
 	p.AuthData = authData
 	_, err = callbackFunc(&p)
 	if err != nil {
