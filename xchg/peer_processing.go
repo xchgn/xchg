@@ -51,7 +51,6 @@ func (c *Peer) processFrame(routerHost string, frame []byte) (responseFrames []*
 }
 
 func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (responseFrames []*Transaction) {
-	//var processor ServerProcessor
 
 	_ = routerHost
 
@@ -63,7 +62,6 @@ func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (respons
 	}
 
 	c.mtx.Lock()
-	//processor = c.processor
 	var incomingTransaction *Transaction
 
 	for trCode, tr := range c.incomingTransactions {
@@ -108,7 +106,6 @@ func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (respons
 
 	generatedLocalCheque := &Cheque{}
 
-	//if processor != nil {
 	resp, dontSendResponse := c.onEdgeReceivedCall(incomingTransaction.SessionId, incomingTransaction.Data)
 	if !dontSendResponse {
 		trResponse := NewTransaction(0x11,
@@ -147,7 +144,6 @@ func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (respons
 			offset += currentBlockSize
 		}
 	}
-	//}
 	return
 }
 
