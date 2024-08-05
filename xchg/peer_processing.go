@@ -23,6 +23,7 @@
 package xchg
 
 import (
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -35,6 +36,8 @@ func (c *Peer) processFrame(routerHost string, frame []byte) (responseFrames []*
 	}
 
 	frameType := frame[4]
+
+	//fmt.Println("processFrame", frameType)
 
 	switch frameType {
 	case XchgFrameCallRequest:
@@ -71,19 +74,20 @@ func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (respons
 		}
 	}
 
-	srcAddr, _ := utils.AddressFromBytes(transaction.SrcAddress[:])
+	srcAddr := transaction.SrcAddress[:]
+
+	publicKey := utils.ExtractPublicKey(c.privateKey)
 
 	var ok bool
 	incomingTransactionCode := fmt.Sprint(transaction.SrcAddress, "-", transaction.TransactionId)
 	if incomingTransaction, ok = c.incomingTransactions[incomingTransactionCode]; !ok {
 		incomingTransaction = NewTransaction(transaction.FrameType,
-			utils.AddressFromPublicKey(&c.privateKey.PublicKey),
+			publicKey,
 			srcAddr,
 			transaction.TransactionId,
 			transaction.SessionId,
 			0,
 			int(transaction.TotalSize),
-			transaction.Cheque,
 			make([]byte, 0))
 		incomingTransaction.BeginDT = time.Now()
 		c.incomingTransactions[incomingTransactionCode] = incomingTransaction
@@ -102,20 +106,19 @@ func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (respons
 	delete(c.incomingTransactions, incomingTransactionCode)
 	c.mtx.Unlock()
 
-	srcAddress, _ := utils.AddressFromBytes(transaction.SrcAddress[:])
+	srcAddress := transaction.SrcAddress[:]
 
-	generatedLocalCheque := &Cheque{}
+	//generatedLocalCheque := &Cheque{}
 
 	resp, dontSendResponse := c.onEdgeReceivedCall(incomingTransaction.SessionId, incomingTransaction.Data)
 	if !dontSendResponse {
 		trResponse := NewTransaction(0x11,
-			utils.AddressFromPublicKey(&c.privateKey.PublicKey),
+			publicKey,
 			srcAddress,
 			incomingTransaction.TransactionId,
 			incomingTransaction.SessionId,
 			0,
 			len(resp),
-			generatedLocalCheque,
 			resp)
 
 		offset := 0
@@ -128,13 +131,13 @@ func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (respons
 			}
 
 			blockTransaction := NewTransaction(0x11,
-				utils.AddressFromPublicKey(&c.privateKey.PublicKey),
+				publicKey,
 				srcAddress,
 				trResponse.TransactionId,
 				trResponse.SessionId,
 				offset,
 				len(resp),
-				trResponse.Cheque,
+
 				trResponse.Data[offset:offset+currentBlockSize])
 
 			blockTransaction.Offset = uint32(offset)
@@ -158,8 +161,8 @@ func (c *Peer) processFrameCallResponse(routerHost string, frame []byte) {
 	c.mtx.Lock()
 	for _, peer := range c.remotePeers {
 
-		srcAddress, _ := utils.AddressFromBytes(tr.SrcAddress[:])
-		if peer.RemoteAddress().Hex() == srcAddress.Hex() {
+		srcAddress := tr.SrcAddress[:]
+		if hex.EncodeToString(peer.RemoteAddress()) == hex.EncodeToString(srcAddress) {
 			remotePeer = peer
 			break
 		}
@@ -181,37 +184,27 @@ func (c *Peer) processFrameGetPublicKeyRequest(frame []byte) (responseFrames []*
 	if err != nil {
 		return
 	}
-	if len(transaction.Data) != XchgAddressSize {
-		return
-	}
+
 	if len(c.localAddressBS) != XchgAddressSize {
 		return
 	}
 
-	// Compare requested address and local address
-	requestedAddress := transaction.Data[:XchgAddressSize]
-	for i := 0; i < 20; i++ {
-		if c.localAddressBS[i] != requestedAddress[i] {
-			return // It is not my address
-		}
-	}
-
-	generatedLocalCheque := &Cheque{}
+	//fmt.Println("transaction.SrcAddress", hex.EncodeToString(transaction.SrcAddress[:]))
 
 	// Send Public Key
-	publicKeyBS := utils.PublicKeyToBytes(&c.privateKey.PublicKey)
-	srcAddress, _ := utils.AddressFromBytes(transaction.SrcAddress[:])
 	response := NewTransaction(XchgFrameGetPublicKeyResponse,
-		utils.AddressFromPublicKey(&c.privateKey.PublicKey),
-		srcAddress,
+		c.localAddressBS,
+		transaction.SrcAddress[:],
 		0,
 		0,
 		0,
 		0,
-		generatedLocalCheque,
 		nil)
-	response.Data = make([]byte, XchgPublicKeySize)
-	copy(response.Data, publicKeyBS)
+	response.Data = make([]byte, 32+64)
+	copy(response.Data, c.TransportPublicKey)
+	signature := utils.SignMessage(c.privateKey, c.TransportPublicKey)
+	copy(response.Data[32:], signature)
+
 	responseFrames = append(responseFrames, response)
 	return
 }
@@ -221,23 +214,23 @@ func (c *Peer) processFrameGetPublicKeyResponse(routerHost string, frame []byte)
 	if err != nil {
 		return
 	}
-	if len(transaction.Data) != XchgPublicKeySize {
+	if len(transaction.Data) != 32+64 {
 		return
 	}
-	receivedPublicKeyBS := transaction.Data
-	receivedPublicKey, err := utils.PublicKeyFromBytes([]byte(receivedPublicKeyBS))
-	if err != nil {
-		return
-	}
-	receivedAddress := utils.AddressFromPublicKey(receivedPublicKey)
-	c.mtx.Lock()
+	remoteTransportPublicKey := transaction.Data[:32]
+	signature := transaction.Data[32:]
 
+	verifyResult := utils.VerifySignature(transaction.SrcAddress[:], remoteTransportPublicKey, signature)
+	if !verifyResult {
+		return
+	}
+
+	c.mtx.Lock()
 	for _, peer := range c.remotePeers {
-		if peer.RemoteAddress().Hex() == receivedAddress.Hex() {
-			peer.setConnectionPoint(routerHost, receivedPublicKey)
+		if hex.EncodeToString(peer.RemoteAddress()) == transaction.SrcAddressString() {
+			peer.setRemoteTransportPublicKey(routerHost, remoteTransportPublicKey)
 			break
 		}
 	}
-
 	c.mtx.Unlock()
 }

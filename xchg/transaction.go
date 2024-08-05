@@ -23,13 +23,12 @@
 package xchg
 
 import (
+	"crypto/ed25519"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/xchgn/xchg/utils"
 )
 
 type Transaction struct {
@@ -43,13 +42,13 @@ type Transaction struct {
 	Offset        uint32 // 21
 	TotalSize     uint32 // 25
 
-	// 20 bytes - Source Address
-	SrcAddress [XchgAddressSize]byte // 29
-	// 20 bytes - Source Address
-	DestAddress [XchgAddressSize]byte // 49
+	// 32 bytes - Source Address
+	SrcAddress [XchgAddressSize]byte // 32
+	// 32 bytes - Source Address
+	DestAddress [XchgAddressSize]byte // 64
 
 	// Cheque = 101 bytes
-	Cheque *Cheque
+	//Cheque *Cheque
 
 	// Data
 	Data []byte
@@ -66,13 +65,13 @@ type Transaction struct {
 }
 
 const (
-	TransactionHeaderSize = 69 + XchgChequeSize
+	TransactionHeaderSize = 32 + 32 + 32
 
 	FrameTypeCall     = byte(0x10)
 	FrameTypeResponse = byte(0x11)
 )
 
-func NewTransaction(frameType byte, srcAddress common.Address, destAddress common.Address, transactionId uint64, sessionId uint64, offset int, totalSize int, cheque *Cheque, data []byte) *Transaction {
+func NewTransaction(frameType byte, srcAddress ed25519.PublicKey, destAddress ed25519.PublicKey, transactionId uint64, sessionId uint64, offset int, totalSize int, data []byte) *Transaction {
 	var c Transaction
 	c.Length = uint32(TransactionHeaderSize + len(data))
 	c.FrameType = frameType
@@ -82,11 +81,11 @@ func NewTransaction(frameType byte, srcAddress common.Address, destAddress commo
 	c.Offset = uint32(offset)
 	c.TotalSize = uint32(totalSize)
 
-	copy(c.SrcAddress[:], srcAddress.Bytes())
-	copy(c.DestAddress[:], destAddress.Bytes())
+	copy(c.SrcAddress[:], srcAddress)
+	copy(c.DestAddress[:], destAddress)
 
-	c.Cheque = &Cheque{}
-	c.Cheque.DeserializeFromBytes(cheque.SerializeToBytes())
+	//c.Cheque = &Cheque{}
+	//c.Cheque.DeserializeFromBytes(cheque.SerializeToBytes())
 
 	c.Data = data
 
@@ -95,13 +94,11 @@ func NewTransaction(frameType byte, srcAddress common.Address, destAddress commo
 }
 
 func (c *Transaction) SrcAddressString() string {
-	address, _ := utils.AddressFromBytes(c.SrcAddress[:])
-	return address.Hex()
+	return hex.EncodeToString(c.SrcAddress[:])
 }
 
 func (c *Transaction) DestAddressString() string {
-	address, _ := utils.AddressFromBytes(c.DestAddress[:])
-	return address.Hex()
+	return hex.EncodeToString(c.DestAddress[:])
 }
 
 func Parse(frame []byte) (tr *Transaction, err error) {
@@ -119,11 +116,8 @@ func Parse(frame []byte) (tr *Transaction, err error) {
 	tr.Offset = binary.LittleEndian.Uint32(frame[21:])
 	tr.TotalSize = binary.LittleEndian.Uint32(frame[25:])
 
-	copy(tr.SrcAddress[:], frame[29:])
-	copy(tr.DestAddress[:], frame[49:])
-
-	tr.Cheque = &Cheque{}
-	tr.Cheque.DeserializeFromBytes(frame[69 : 69+XchgChequeSize])
+	copy(tr.SrcAddress[:], frame[32:])
+	copy(tr.DestAddress[:], frame[64:])
 
 	tr.Data = make([]byte, len(frame)-TransactionHeaderSize)
 	copy(tr.Data, frame[TransactionHeaderSize:])
@@ -142,10 +136,10 @@ func (c *Transaction) Marshal() (result []byte) {
 	binary.LittleEndian.PutUint32(result[21:], c.Offset)
 	binary.LittleEndian.PutUint32(result[25:], c.TotalSize)
 
-	copy(result[29:], c.SrcAddress[:])
-	copy(result[49:], c.DestAddress[:])
+	copy(result[32:], c.SrcAddress[:])
+	copy(result[64:], c.DestAddress[:])
 
-	copy(result[69:], c.Cheque.SerializeToBytes())
+	//copy(result[69:], c.Cheque.SerializeToBytes())
 
 	copy(result[TransactionHeaderSize:], c.Data)
 

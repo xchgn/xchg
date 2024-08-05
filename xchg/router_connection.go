@@ -25,9 +25,8 @@ package xchg
 import "github.com/ethereum/go-ethereum/common"
 
 type RouterConnection struct {
-	IPAddress  string
-	Address    common.Address
-	LastCheque *Cheque
+	IPAddress string
+	Address   common.Address
 }
 
 func (c *RouterConnection) Init() {

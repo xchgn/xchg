@@ -29,8 +29,6 @@ import (
 	"net/http"
 	"sync"
 	"time"
-
-	"github.com/xchgn/xchg/utils"
 )
 
 type RouterInfo struct {
@@ -57,7 +55,7 @@ func NewValidator() *Validator {
 
 func (c *Validator) Start() {
 	c.routers = make([]*RouterInfo, 0)
-	c.privateKey, _ = utils.GeneratePrivateKey()
+	//c.privateKey, _ = utils.GeneratePrivateKey()
 	c.srv = &http.Server{
 		Addr: ":8184",
 	}
@@ -129,17 +127,17 @@ func (c *Validator) processRegisterRouter(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	addressStr := r.FormValue("address")
+	//addressStr := r.FormValue("address")
 	ipAddress := r.FormValue("ipAddress")
 	signature := r.FormValue("signature")
 
-	address, err := utils.StringToAddress(addressStr)
-	if err != nil {
+	//address, err := utils.StringToAddress(addressStr)
+	/*if err != nil {
 		return
-	}
+	}*/
 
 	var router RouterInfo
-	router.Address = address.Hex()
+	//router.Address = address.Hex()
 	router.HttpConnectionPoint = ipAddress
 	router.Signature = signature
 	c.routers = append(c.routers, &router)

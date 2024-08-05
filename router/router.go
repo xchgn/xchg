@@ -24,13 +24,12 @@ package router
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"sort"
 	"sync"
 	"time"
-
-	"github.com/xchgn/xchg/utils"
 )
 
 const (
@@ -277,15 +276,20 @@ func (c *Router) Put(frame []byte) {
 
 	//fmt.Println("ROUTER PUT:", frame)
 
-	addressDestBS := frame[49:69]
-	addressDest, _ := utils.AddressFromBytes(addressDestBS)
-	//fmt.Println("Router::Put", addressDest.Hex())
+	addressDestBS := frame[64 : 64+32]
+	addressDest := addressDestBS
+	//addressSrc := frame[32 : 32+32]
+	// fmt.Println("Router::Put", addressDest.Hex())
 
 	c.mtx.Lock()
-	addressStorage, ok = c.addresses[addressDest.Hex()]
+	addrDestStr := hex.EncodeToString(addressDest)
+	//addrSrcStr := hex.EncodeToString(addressSrc)
+	//fmt.Println("ROUTER dest:", addrDestStr)
+	//fmt.Println("ROUTER src:", addrSrcStr)
+	addressStorage, ok = c.addresses[addrDestStr]
 	if !ok || addressStorage == nil {
 		addressStorage = NewStorage()
-		c.addresses[addressDest.Hex()] = addressStorage
+		c.addresses[addrDestStr] = addressStorage
 	}
 	id := c.nextId
 	c.nextId++
@@ -310,12 +314,12 @@ func (c *Router) GetMessages(frame []byte) (response []byte, count int, err erro
 
 	afterId := binary.LittleEndian.Uint64(frame[0:])
 	maxSize := binary.LittleEndian.Uint64(frame[8:])
-	addressSrcBS := frame[16 : 16+20]
+	addressSrcBS := frame[16 : 16+32]
 
-	addressSrc, _ := utils.AddressFromBytes(addressSrcBS)
+	addressSrc := addressSrcBS
 
 	c.mtx.Lock()
-	addressStorage, ok = c.addresses[addressSrc.Hex()]
+	addressStorage, ok = c.addresses[hex.EncodeToString(addressSrc)]
 	c.mtx.Unlock()
 
 	if !ok || addressStorage == nil {

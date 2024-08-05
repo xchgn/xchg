@@ -23,39 +23,20 @@
 package utils
 
 import (
-	"crypto/ecdsa"
-	"fmt"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/hex"
 )
 
-func GeneratePrivateKey() (*ecdsa.PrivateKey, error) {
-	privateKey, err := crypto.GenerateKey()
+func GeneratePrivateKey() (ed25519.PrivateKey, error) {
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, err
 	}
 	return privateKey, nil
 }
 
-func PublicKeyToBytes(publicKey *ecdsa.PublicKey) (publicKeyDer []byte) {
-	if publicKey == nil {
-		return
-	}
-	return crypto.FromECDSAPub(publicKey)
-}
-
-func PublicKeyFromBytes(publicKeyDer []byte) (publicKey *ecdsa.PublicKey, err error) {
-	pubKey, err := crypto.UnmarshalPubkey(publicKeyDer)
-	if err != nil {
-		return nil, err
-	}
-	return pubKey, nil
-}
-
-func StringToAddress(address string) (common.Address, error) {
-	if !common.IsHexAddress(address) {
-		return common.Address{}, fmt.Errorf("invalid address: %s", address)
-	}
-	return common.HexToAddress(address), nil
+func StringToAddress(address string) (publicKey ed25519.PublicKey, err error) {
+	publicKey, err = hex.DecodeString(address)
+	return
 }

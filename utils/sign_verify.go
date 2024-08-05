@@ -24,10 +24,8 @@ package utils
 
 import (
 	"crypto/ecdsa"
-	"crypto/rand"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/ecies"
 )
 
 // SignData signs the given data using the provided private key.
@@ -41,7 +39,7 @@ func SignData(privateKey *ecdsa.PrivateKey, data []byte) ([]byte, error) {
 }
 
 // VerifySignature verifies the signature of the given data using the provided public key.
-func VerifySignature(pubKey *ecdsa.PublicKey, data []byte, signature []byte) bool {
+/*func VerifySignature(pubKey *ecdsa.PublicKey, data []byte, signature []byte) bool {
 	hash := crypto.Keccak256Hash(data)
 	return crypto.VerifySignature(crypto.FromECDSAPub(pubKey), hash.Bytes(), signature[:len(signature)-1]) // -1 to remove the recovery id
 }
@@ -54,23 +52,4 @@ func RecoverPublicKeyFromSignature(message, signature []byte) (*ecdsa.PublicKey,
 	recoveredPubKey, err := crypto.UnmarshalPubkey(publicKeyAsBytes)
 	return recoveredPubKey, err
 }
-
-// EncryptBytesWithPublicKey encrypts data with the given ECIES public key.
-func EncryptBytesWithPublicKey(pubKey *ecdsa.PublicKey, data []byte) ([]byte, error) {
-	eciesPubKey := ecies.ImportECDSAPublic(pubKey)
-	encryptedData, err := ecies.Encrypt(rand.Reader, eciesPubKey, data, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	return encryptedData, nil
-}
-
-// DecryptBytesWithPrivateKey decrypts data with the given ECIES private key.
-func DecryptBytesWithPrivateKey(privKey *ecdsa.PrivateKey, encryptedData []byte) ([]byte, error) {
-	eciesPrivKey := ecies.ImportECDSA(privKey)
-	decryptedData, err := eciesPrivKey.Decrypt(encryptedData, nil, nil)
-	if err != nil {
-		return nil, err
-	}
-	return decryptedData, nil
-}
+*/

@@ -22,6 +22,7 @@
 
 package xchg
 
+/*
 import (
 	"encoding/binary"
 	"sync"
@@ -75,3 +76,4 @@ func (c *Cheque) Check() (checkResult bool, address common.Address) {
 	checkResult = utils.VerifySignature(publicKey, chequeAsBytes[:XchgChequeDataSize], c.Signature[:])
 	return
 }
+*/

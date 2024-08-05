@@ -1,6 +1,7 @@
 package samplesinglecall
 
 import (
+	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -15,7 +16,12 @@ func Run() {
 		return
 	})
 
+	fmt.Println("Server Address:", hex.EncodeToString(s.Address()))
+
 	c := xchg.StartClientPeer()
+
+	fmt.Println("Client Address:", hex.EncodeToString(c.Address()))
+
 	resultBS, err := c.Call(s.Address(), "", "", nil, 2*time.Second)
 	if err != nil {
 		fmt.Println("Error:", err)

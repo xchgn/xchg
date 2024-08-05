@@ -21,26 +21,3 @@
 // SOFTWARE.
 
 package utils
-
-import (
-	"crypto/ecdsa"
-	"fmt"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
-)
-
-func AddressFromPublicKey(publicKey *ecdsa.PublicKey) common.Address {
-	if publicKey == nil {
-		return common.Address{}
-	}
-	return crypto.PubkeyToAddress(*publicKey)
-}
-
-func AddressFromBytes(bytes []byte) (common.Address, error) {
-	if len(bytes) != 20 {
-		return common.Address{}, fmt.Errorf("invalid length: expected 20 bytes, got %d bytes", len(bytes))
-	}
-	address := common.BytesToAddress(bytes)
-	return address, nil
-}

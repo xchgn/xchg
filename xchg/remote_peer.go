@@ -24,7 +24,7 @@ package xchg
 
 import (
 	"bytes"
-	"crypto/ecdsa"
+	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
@@ -37,7 +37,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/xchgn/xchg/utils"
 )
 
@@ -50,13 +49,21 @@ type RemotePeerTransport interface {
 }
 
 type RemotePeer struct {
-	mtx           sync.Mutex
-	remoteAddress common.Address
+	mtx sync.Mutex
+
+	remoteAddress ed25519.PublicKey
 	authData      string
 	//network       *Network
 
-	privateKey      *ecdsa.PrivateKey
-	remotePublicKey *ecdsa.PublicKey
+	TransportPrivateKey []byte
+	TransportPublicKey  []byte
+
+	privateKey ed25519.PrivateKey
+	publicKey  ed25519.PublicKey
+
+	remoteTransportPublicKey ed25519.PublicKey
+
+	// tempPrivateKey ed25519.PrivateKey
 
 	nonces *Nonces
 
@@ -71,14 +78,17 @@ type RemotePeer struct {
 	nextTransactionId    uint64
 }
 
-func NewRemotePeer(remoteAddress common.Address, authData string, privateKey *ecdsa.PrivateKey) *RemotePeer {
+func NewRemotePeer(remoteAddress ed25519.PublicKey, authData string, privateKey ed25519.PrivateKey) *RemotePeer {
 	var c RemotePeer
 	c.privateKey = privateKey
+	c.publicKey = utils.ExtractPublicKey(c.privateKey)
 	c.remoteAddress = remoteAddress
 	c.authData = authData
 	c.outgoingTransactions = make(map[uint64]*Transaction)
 	c.nextTransactionId = 1
 	c.nonces = NewNonces(100)
+
+	c.TransportPrivateKey, c.TransportPublicKey, _ = utils.GenerateCurve25519KeyPair()
 
 	tr := &http.Transport{}
 	jar, _ := cookiejar.New(nil)
@@ -88,7 +98,7 @@ func NewRemotePeer(remoteAddress common.Address, authData string, privateKey *ec
 	return &c
 }
 
-func (c *RemotePeer) RemoteAddress() common.Address {
+func (c *RemotePeer) RemoteAddress() ed25519.PublicKey {
 	return c.remoteAddress
 }
 
@@ -127,12 +137,12 @@ func (c *RemotePeer) processFrame11(routerHost string, frame []byte) {
 	c.mtx.Unlock()
 }
 
-func (c *RemotePeer) setConnectionPoint(routerHost string, publicKey *ecdsa.PublicKey) {
+func (c *RemotePeer) setRemoteTransportPublicKey(routerHost string, transportPublicKey []byte) {
 	_ = routerHost
 	c.mtx.Lock()
-	c.remotePublicKey = publicKey
+	c.remoteTransportPublicKey = transportPublicKey
 	c.mtx.Unlock()
-	//fmt.Println("Received Address for", c.remoteAddress, "from", routerHost)
+	//fmt.Println("Received Transport Public Key for", hex.EncodeToString(c.remoteAddress), ":", hex.EncodeToString(transportPublicKey))
 }
 
 func (c *RemotePeer) Call(network *Network, function string, data []byte, timeout time.Duration) (result []byte, err error) {
@@ -140,36 +150,40 @@ func (c *RemotePeer) Call(network *Network, function string, data []byte, timeou
 	sessionId := c.sessionId
 	c.mtx.Unlock()
 
-	if c.remotePublicKey == nil {
-		addressBS := c.remoteAddress.Bytes()
-		generatedLocalCheque := &Cheque{}
+	if c.remoteTransportPublicKey == nil {
+		//addressBS := c.remoteAddress
+		//generatedLocalCheque := &Cheque{}
+
+		/*message := make([]byte, 32+64)
+		copy(message, c.TransportPublicKey)
+		signature := utils.SignMessage(c.privateKey, c.TransportPublicKey)
+		copy(message[32:], signature)*/
 
 		transaction := NewTransaction(XchgFrameGetPublicKeyRequest,
-			utils.AddressFromPublicKey(&c.privateKey.PublicKey),
+			c.publicKey,
 			c.remoteAddress,
 			0,
 			0,
 			0,
 			0,
-			generatedLocalCheque,
 			nil)
-		transaction.Data = make([]byte, XchgAddressSize)
+		//transaction.Data = make([]byte, XchgAddressSize)
 
-		copy(transaction.Data, addressBS)
+		//copy(transaction.Data, addressBS)
 		addr := network.GetRouterAddr()
 		c.httpCall(addr, "w", transaction.Marshal())
 
 		// Wait for public key for 1 second
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 200; i++ {
 			time.Sleep(10 * time.Millisecond)
-			if c.remotePublicKey != nil {
+			if c.remoteTransportPublicKey != nil {
 				break
 			}
 		}
 	}
 
-	if c.remotePublicKey == nil {
-		return nil, errors.New("NO PUBLIC KEY")
+	if c.remoteTransportPublicKey == nil {
+		return nil, errors.New("NO remote transport public key KEY")
 	}
 
 	if sessionId == 0 {
@@ -190,8 +204,6 @@ func (c *RemotePeer) Call(network *Network, function string, data []byte, timeou
 }
 
 func (c *RemotePeer) auth(network *Network, timeout time.Duration) (err error) {
-	//fmt.Println("RemotePeer::auth")
-
 	c.mtx.Lock()
 	if c.authProcessing {
 		c.mtx.Unlock()
@@ -219,9 +231,11 @@ func (c *RemotePeer) auth(network *Network, timeout time.Duration) (err error) {
 		return
 	}
 
+	//fmt.Println("Received nonce:", hex.EncodeToString(nonce))
+
 	c.mtx.Lock()
-	localPrivateKey := c.privateKey
-	remotePublicKey := c.remotePublicKey
+	//localPrivateKey := c.privateKey
+	remotePublicKey := c.remoteTransportPublicKey
 	authData := make([]byte, len(c.authData))
 	copy(authData, []byte(c.authData))
 	c.mtx.Unlock()
@@ -236,21 +250,24 @@ func (c *RemotePeer) auth(network *Network, timeout time.Duration) (err error) {
 		return
 	}
 
-	localPublicKeyBS := utils.PublicKeyToBytes(&localPrivateKey.PublicKey)
+	c.aesKey, err = utils.GetSharedKey(c.TransportPrivateKey, c.remoteTransportPublicKey)
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	authFrameSecret := make([]byte, 16+len(authData))
 	copy(authFrameSecret[0:], nonce)
 	copy(authFrameSecret[16:], authData)
 	var encryptedAuthFrame []byte
-	encryptedAuthFrame, err = utils.EncryptBytesWithPublicKey(remotePublicKey, []byte(authFrameSecret))
+	encryptedAuthFrame, err = utils.EncryptAESGCM(authFrameSecret, c.aesKey)
 	if err != nil {
 		err = errors.New(ERR_XCHG_CL_CONN_AUTH_ENC + ":" + err.Error())
 		return
 	}
 
-	authFrame := make([]byte, len(localPublicKeyBS)+len(encryptedAuthFrame))
-	copy(authFrame, localPublicKeyBS)
-	copy(authFrame[len(localPublicKeyBS):], encryptedAuthFrame)
+	authFrame := make([]byte, len(c.TransportPublicKey)+len(encryptedAuthFrame))
+	copy(authFrame, c.TransportPublicKey)
+	copy(authFrame[len(c.TransportPublicKey):], encryptedAuthFrame)
 
 	var result []byte
 	result, err = c.regularCall(network, "/xchg-auth", authFrame, nil, timeout)
@@ -259,29 +276,25 @@ func (c *RemotePeer) auth(network *Network, timeout time.Duration) (err error) {
 		return
 	}
 
-	result, err = utils.DecryptBytesWithPrivateKey(localPrivateKey, result)
+	result, err = utils.DecryptAESGCM(result, c.aesKey)
 	if err != nil {
 		err = errors.New(ERR_XCHG_CL_CONN_AUTH_DECR + ":" + err.Error())
 		return
 	}
 
-	if len(result) != 8+32 {
+	if len(result) != 8 {
 		err = errors.New(ERR_XCHG_CL_CONN_AUTH_WRONG_AUTH_RESP_LEN)
 		return
 	}
 
 	c.mtx.Lock()
 	c.sessionId = binary.LittleEndian.Uint64(result)
-	c.aesKey = make([]byte, 32)
-	copy(c.aesKey, result[8:])
 	c.mtx.Unlock()
 
 	return
 }
 
 func (c *RemotePeer) regularCall(network *Network, function string, data []byte, aesKey []byte, timeout time.Duration) (result []byte, err error) {
-	//fmt.Println("RemotePeer::regularCall", function)
-
 	if len(function) > 255 {
 		err = errors.New(ERR_XCHG_CL_CONN_CALL_WRONG_FUNCTION_LEN)
 		return
@@ -414,10 +427,12 @@ func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data
 	transactionId = c.nextTransactionId
 	c.nextTransactionId++
 
-	generatedLocalCheque := &Cheque{}
+	//generatedLocalCheque := &Cheque{}
+
+	publicKey := utils.ExtractPublicKey(c.privateKey)
 
 	// Create transaction
-	t := NewTransaction(FrameTypeCall, utils.AddressFromPublicKey(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, 0, len(data), generatedLocalCheque, data)
+	t := NewTransaction(FrameTypeCall, publicKey, c.remoteAddress, transactionId, sessionId, 0, len(data), data)
 	c.outgoingTransactions[transactionId] = t
 	c.mtx.Unlock()
 
@@ -433,7 +448,7 @@ func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data
 			currentBlockSize = restDataLen
 		}
 
-		blockTransaction := NewTransaction(FrameTypeCall, utils.AddressFromPublicKey(&c.privateKey.PublicKey), c.remoteAddress, transactionId, sessionId, offset, len(data), generatedLocalCheque, data[offset:offset+currentBlockSize])
+		blockTransaction := NewTransaction(FrameTypeCall, publicKey, c.remoteAddress, transactionId, sessionId, offset, len(data), data[offset:offset+currentBlockSize])
 
 		err = c.Send(network, blockTransaction)
 

@@ -23,7 +23,8 @@
 package xchg
 
 import (
-	"crypto/ecdsa"
+	"crypto/ed25519"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -31,7 +32,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/xchgn/xchg/router"
 	"github.com/xchgn/xchg/utils"
 )
@@ -42,7 +42,7 @@ type Logger interface {
 
 type Param struct {
 	LocalPeer     *Peer
-	RemoteAddress common.Address
+	RemoteAddress ed25519.PublicKey
 	AuthData      []byte
 	Function      string
 	Parameter     []byte
@@ -52,10 +52,13 @@ type CallbackFunc func(param *Param) (response []byte, err error)
 
 type Peer struct {
 	mtx        sync.Mutex
-	privateKey *ecdsa.PrivateKey
+	privateKey ed25519.PrivateKey
 	started    bool
 	stopping   bool
 	network    *Network
+
+	TransportPrivateKey []byte
+	TransportPublicKey  []byte
 
 	httpClient     *http.Client
 	httpClientLong *http.Client
@@ -90,12 +93,12 @@ type Session struct {
 	id              uint64
 	aesKey          []byte
 	authData        []byte
-	remotePublicKey *ecdsa.PublicKey
+	remotePublicKey ed25519.PublicKey
 	lastAccessDT    time.Time
 	snakeCounter    *SnakeCounter
 }
 
-func NewPeer(privateKey *ecdsa.PrivateKey) *Peer {
+func NewPeer(privateKey ed25519.PrivateKey) *Peer {
 	var c Peer
 	c.logger = NewDefaultLogger()
 	c.remotePeers = make(map[string]*RemotePeer)
@@ -107,6 +110,8 @@ func NewPeer(privateKey *ecdsa.PrivateKey) *Peer {
 	c.lastReceivedMessageId = make(map[string]uint64)
 
 	c.routerStatRead = make(map[string]int)
+
+	c.TransportPrivateKey, c.TransportPublicKey, _ = utils.GenerateCurve25519KeyPair()
 
 	c.gettingFromInternet = make(map[string]bool)
 	c.longPollingDelay = 12 * time.Second
@@ -133,7 +138,7 @@ func NewPeer(privateKey *ecdsa.PrivateKey) *Peer {
 	return &c
 }
 
-func StartServerPeer(privateKey *ecdsa.PrivateKey, callback CallbackFunc) *Peer {
+func StartServerPeer(privateKey ed25519.PrivateKey, callback CallbackFunc) *Peer {
 	c := NewPeer(privateKey)
 	c.Callback = callback
 	c.Start()
@@ -156,7 +161,7 @@ func (c *Peer) Start() (err error) {
 	}
 	c.mtx.Unlock()
 
-	c.localAddressBS = utils.AddressFromPublicKey(&c.privateKey.PublicKey).Bytes()
+	c.localAddressBS = utils.ExtractPublicKey(c.privateKey)
 
 	c.router1 = router.NewRouter()
 	c.router1.Start()
@@ -209,8 +214,8 @@ func (c *Peer) Stop() (err error) {
 	return
 }
 
-func (c *Peer) Address() common.Address {
-	return utils.AddressFromPublicKey(&c.privateKey.PublicKey)
+func (c *Peer) Address() ed25519.PublicKey {
+	return utils.ExtractPublicKey(c.privateKey)
 }
 
 func (c *Peer) Network() *Network {
@@ -246,12 +251,12 @@ func (c *Peer) thWork() {
 	c.started = false
 }
 
-func (c *Peer) Call(remoteAddress common.Address, authData string, function string, data []byte, timeout time.Duration) (result []byte, err error) {
+func (c *Peer) Call(remoteAddress ed25519.PublicKey, authData string, function string, data []byte, timeout time.Duration) (result []byte, err error) {
 	c.mtx.Lock()
-	remotePeer, remotePeerOk := c.remotePeers[remoteAddress.Hex()]
+	remotePeer, remotePeerOk := c.remotePeers[hex.EncodeToString(remoteAddress)]
 	if !remotePeerOk || remotePeer == nil {
 		remotePeer = NewRemotePeer(remoteAddress, authData, c.privateKey)
-		c.remotePeers[remoteAddress.Hex()] = remotePeer
+		c.remotePeers[hex.EncodeToString(remoteAddress)] = remotePeer
 	}
 	network := c.network
 	c.mtx.Unlock()

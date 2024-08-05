@@ -42,7 +42,7 @@ func (c *Peer) getFramesFromRouter(router string) {
 		c.mtx.Lock()
 		fromMessageId := c.lastReceivedMessageId[router]
 		c.mtx.Unlock()
-		getMessageRequest := make([]byte, 16+30)
+		getMessageRequest := make([]byte, 8+8+32)
 		binary.LittleEndian.PutUint64(getMessageRequest[0:], fromMessageId)
 		binary.LittleEndian.PutUint64(getMessageRequest[8:], 10*1024*1024)
 		copy(getMessageRequest[16:], c.localAddressBS)
@@ -65,6 +65,8 @@ func (c *Peer) getFramesFromRouter(router string) {
 
 func (c *Peer) processFramesFromInternet(res []byte, router string) {
 	offset := 8
+
+	//fmt.Println("processFramesFromInternet", res)
 
 	responses := make([]*Transaction, 0)
 	responsesCount := 0

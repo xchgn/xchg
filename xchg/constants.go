@@ -25,15 +25,13 @@ package xchg
 const (
 	XchgMaxFrameSize       = 64 * 1024
 	XchgMaxTransactionSize = 1024 * 1024
-	XchgSignatureSize      = 65
-	XchgPublicKeySize      = 65
-	XchgAddressSize        = 20
+	XchgPublicKeySize      = 32
+	XchgAddressSize        = 32
 	XchgNonceSize          = 16
 	XchgAesKeySize         = 32
 
 	// Cheque
 	XchgChequeDataSize = 8 + 20 + 8
-	XchgChequeSize     = XchgChequeDataSize + XchgSignatureSize
 
 	// Frame Type Code
 	XchgFrameCallRequest          = 0x10

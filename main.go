@@ -1,9 +1,9 @@
 package main
 
 import (
-	samplecascade "github.com/xchgn/xchg/samples/sample_cascade"
+	samplesinglecall "github.com/xchgn/xchg/samples/sample_single_call"
 )
 
 func main() {
-	samplecascade.Run()
+	samplesinglecall.Run()
 }
