@@ -42,19 +42,22 @@ func Run() {
 			return
 		}
 		if param.Function == "get_name_and_status" {
-			responseName, err := param.LocalPeer.Call(param.RemoteAddress, "", "get_name", nil, time.Second)
+			responseName, err := param.LocalPeer.Call(param.RemoteAddress, "", "get_name", nil, 2*time.Second)
 			if err != nil {
 				fmt.Println("peer1 error:", err)
 				return nil, err
 			}
 
-			responseStatus, err := param.LocalPeer.Call(param.RemoteAddress, "", "get_status", nil, time.Second)
+			fmt.Println(responseName)
+
+			/*responseStatus, err := param.LocalPeer.Call(param.RemoteAddress, "", "get_status", nil, time.Second)
 			if err != nil {
 				fmt.Println("peer1 error:", err)
 				return nil, err
-			}
+			}*/
 
-			response = []byte(string(responseName) + ":" + string(responseStatus))
+			//response = []byte(string(responseName) + ":" + string(responseStatus))
+			response = []byte("qqq")
 
 		}
 		return
@@ -74,7 +77,7 @@ func Run() {
 		return
 	})
 
-	response, err := peer2.Call(peer1.Address(), "", "get_name_and_status", nil, 1*time.Second)
+	response, err := peer2.Call(peer1.Address(), "", "get_name_and_status", nil, 3*time.Second)
 	if err != nil {
 		fmt.Println("Error:", err)
 	} else {

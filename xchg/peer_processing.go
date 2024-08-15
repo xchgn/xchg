@@ -189,7 +189,7 @@ func (c *Peer) processFrameGetPublicKeyRequest(frame []byte) (responseFrames []*
 		return
 	}
 
-	//fmt.Println("transaction.SrcAddress", hex.EncodeToString(transaction.SrcAddress[:]))
+	fmt.Println("transaction.SrcAddress", hex.EncodeToString(transaction.SrcAddress[:]))
 
 	// Send Public Key
 	response := NewTransaction(XchgFrameGetPublicKeyResponse,

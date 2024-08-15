@@ -169,6 +169,8 @@ func (c *RemotePeer) Call(network *Network, function string, data []byte, timeou
 			nil)
 		//transaction.Data = make([]byte, XchgAddressSize)
 
+		copy(transaction.Comment[:], []byte("GET_KEY"))
+
 		//copy(transaction.Data, addressBS)
 		addr := network.GetRouterAddr()
 		c.httpCall(addr, "w", transaction.Marshal())
@@ -351,7 +353,7 @@ func (c *RemotePeer) regularCall(network *Network, function string, data []byte,
 		copy(frame[1+len(function):], data)
 	}
 
-	result, err = c.executeTransaction(network, sessionId, frame, timeout, aesKey)
+	result, err = c.executeTransaction(network, sessionId, frame, timeout, aesKey, function)
 
 	if NeedToChangeNode(err) {
 		c.Reset()
@@ -419,7 +421,7 @@ func (c *RemotePeer) reset() {
 	c.aesKey = nil
 }
 
-func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data []byte, timeout time.Duration, aesKeyOriginal []byte) (result []byte, err error) {
+func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data []byte, timeout time.Duration, aesKeyOriginal []byte, comment string) (result []byte, err error) {
 
 	// Get transaction ID
 	var transactionId uint64
@@ -434,6 +436,7 @@ func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data
 	// Create transaction
 	t := NewTransaction(FrameTypeCall, publicKey, c.remoteAddress, transactionId, sessionId, 0, len(data), data)
 	c.outgoingTransactions[transactionId] = t
+	copy(t.Comment[:], []byte(comment))
 	c.mtx.Unlock()
 
 	// Send transaction
@@ -449,6 +452,7 @@ func (c *RemotePeer) executeTransaction(network *Network, sessionId uint64, data
 		}
 
 		blockTransaction := NewTransaction(FrameTypeCall, publicKey, c.remoteAddress, transactionId, sessionId, offset, len(data), data[offset:offset+currentBlockSize])
+		copy(blockTransaction.Comment[:], []byte(comment))
 
 		err = c.Send(network, blockTransaction)
 

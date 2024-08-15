@@ -29,6 +29,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/xchgn/xchg/utils"
 )
 
 type Transaction struct {
@@ -46,6 +48,8 @@ type Transaction struct {
 	SrcAddress [XchgAddressSize]byte // 32
 	// 32 bytes - Source Address
 	DestAddress [XchgAddressSize]byte // 64
+
+	Comment [32]byte // 32
 
 	// Cheque = 101 bytes
 	//Cheque *Cheque
@@ -65,7 +69,7 @@ type Transaction struct {
 }
 
 const (
-	TransactionHeaderSize = 32 + 32 + 32
+	TransactionHeaderSize = 32 + 32 + 32 + 32
 
 	FrameTypeCall     = byte(0x10)
 	FrameTypeResponse = byte(0x11)
@@ -101,6 +105,12 @@ func (c *Transaction) DestAddressString() string {
 	return hex.EncodeToString(c.DestAddress[:])
 }
 
+func (c *Transaction) String() string {
+	bs := c.Marshal()
+	res := utils.TransactionSummary(bs)
+	return res
+}
+
 func Parse(frame []byte) (tr *Transaction, err error) {
 	if len(frame) < TransactionHeaderSize {
 		err = errors.New("wrong frame")
@@ -118,6 +128,7 @@ func Parse(frame []byte) (tr *Transaction, err error) {
 
 	copy(tr.SrcAddress[:], frame[32:])
 	copy(tr.DestAddress[:], frame[64:])
+	copy(tr.Comment[:], frame[96:])
 
 	tr.Data = make([]byte, len(frame)-TransactionHeaderSize)
 	copy(tr.Data, frame[TransactionHeaderSize:])
@@ -138,6 +149,7 @@ func (c *Transaction) Marshal() (result []byte) {
 
 	copy(result[32:], c.SrcAddress[:])
 	copy(result[64:], c.DestAddress[:])
+	copy(result[96:], c.Comment[:])
 
 	//copy(result[69:], c.Cheque.SerializeToBytes())
 
@@ -146,10 +158,10 @@ func (c *Transaction) Marshal() (result []byte) {
 	return
 }
 
-func (c *Transaction) String() string {
+/*func (c *Transaction) String() string {
 	res := fmt.Sprint(c.TransactionId) + "t:" + fmt.Sprint(c.FrameType) + " dl:" + fmt.Sprint(len(c.Data))
 	return res
-}
+}*/
 
 func (c *Transaction) AppendReceivedData(transaction *Transaction) {
 	if len(c.ReceivedFrames) < 100000 {

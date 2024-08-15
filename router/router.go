@@ -27,9 +27,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/xchgn/xchg/utils"
 )
 
 const (
@@ -259,27 +262,10 @@ func (c *Router) Put(frame []byte) {
 	var ok bool
 	var addressStorage *Storage
 
-	tp := ""
-	{
-		switch frame[4] {
-		case 0x10:
-			tp = "CALL_REQ"
-		case 0x11:
-			tp = "CALL_RES"
-		case 0x20:
-			tp = "PUB_REQ"
-		case 0x21:
-			tp = "PUB_RES"
-		}
-	}
-	_ = tp
+	addressDest := frame[64 : 64+32]
+	// addressSrc := frame[32 : 32+32]
 
-	//fmt.Println("ROUTER PUT:", frame)
-
-	addressDestBS := frame[64 : 64+32]
-	addressDest := addressDestBS
-	//addressSrc := frame[32 : 32+32]
-	// fmt.Println("Router::Put", addressDest.Hex())
+	fmt.Println("ROUTER PUT ", utils.TransactionSummary(frame))
 
 	c.mtx.Lock()
 	addrDestStr := hex.EncodeToString(addressDest)
