@@ -82,8 +82,8 @@ func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (respons
 	incomingTransactionCode := fmt.Sprint(transaction.SrcAddress, "-", transaction.TransactionId)
 	if incomingTransaction, ok = c.incomingTransactions[incomingTransactionCode]; !ok {
 		incomingTransaction = NewTransaction(transaction.FrameType,
-			publicKey,
 			srcAddr,
+			publicKey,
 			transaction.TransactionId,
 			transaction.SessionId,
 			0,
@@ -110,7 +110,9 @@ func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (respons
 
 	//generatedLocalCheque := &Cheque{}
 
-	resp, dontSendResponse := c.onEdgeReceivedCall(incomingTransaction.SessionId, incomingTransaction.Data)
+	fmt.Println("---", hex.EncodeToString(incomingTransaction.SrcAddress[:]))
+
+	resp, dontSendResponse := c.onEdgeReceivedCall(incomingTransaction.SessionId, incomingTransaction.Data, incomingTransaction.SrcAddress[:])
 	if !dontSendResponse {
 		trResponse := NewTransaction(0x11,
 			publicKey,
@@ -188,8 +190,6 @@ func (c *Peer) processFrameGetPublicKeyRequest(frame []byte) (responseFrames []*
 	if len(c.localAddressBS) != XchgAddressSize {
 		return
 	}
-
-	fmt.Println("transaction.SrcAddress", hex.EncodeToString(transaction.SrcAddress[:]))
 
 	// Send Public Key
 	response := NewTransaction(XchgFrameGetPublicKeyResponse,

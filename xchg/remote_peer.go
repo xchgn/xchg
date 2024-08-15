@@ -185,6 +185,7 @@ func (c *RemotePeer) Call(network *Network, function string, data []byte, timeou
 	}
 
 	if c.remoteTransportPublicKey == nil {
+		//logger.Println("NO PUBLIC KEY ERROR")
 		return nil, errors.New("NO remote transport public key KEY")
 	}
 

@@ -27,11 +27,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sort"
 	"sync"
 	"time"
 
+	"github.com/ipoluianov/gomisc/logger"
 	"github.com/xchgn/xchg/utils"
 )
 
@@ -265,7 +265,7 @@ func (c *Router) Put(frame []byte) {
 	addressDest := frame[64 : 64+32]
 	// addressSrc := frame[32 : 32+32]
 
-	fmt.Println("ROUTER PUT ", utils.TransactionSummary(frame))
+	logger.Println("ROUTER PUT ", utils.TransactionSummary(frame))
 
 	c.mtx.Lock()
 	addrDestStr := hex.EncodeToString(addressDest)

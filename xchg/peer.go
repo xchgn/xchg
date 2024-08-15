@@ -90,12 +90,13 @@ type Peer struct {
 }
 
 type Session struct {
-	id              uint64
-	aesKey          []byte
-	authData        []byte
-	remotePublicKey ed25519.PublicKey
-	lastAccessDT    time.Time
-	snakeCounter    *SnakeCounter
+	id                       uint64
+	aesKey                   []byte
+	authData                 []byte
+	remoteTransportPublicKey ed25519.PublicKey
+	remoteRealPublicKey      ed25519.PublicKey
+	lastAccessDT             time.Time
+	snakeCounter             *SnakeCounter
 }
 
 func NewPeer(privateKey ed25519.PrivateKey) *Peer {
@@ -216,6 +217,10 @@ func (c *Peer) Stop() (err error) {
 
 func (c *Peer) Address() ed25519.PublicKey {
 	return utils.ExtractPublicKey(c.privateKey)
+}
+
+func (c *Peer) AddressHex() string {
+	return hex.EncodeToString(c.Address())
 }
 
 func (c *Peer) Network() *Network {

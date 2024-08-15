@@ -23,9 +23,11 @@
 package samplecascade
 
 import (
+	"encoding/hex"
 	"fmt"
 	"time"
 
+	"github.com/ipoluianov/gomisc/logger"
 	"github.com/xchgn/xchg/xchg"
 )
 
@@ -42,22 +44,21 @@ func Run() {
 			return
 		}
 		if param.Function == "get_name_and_status" {
+			logger.Println("nested calling:", hex.EncodeToString(param.RemoteAddress))
 			responseName, err := param.LocalPeer.Call(param.RemoteAddress, "", "get_name", nil, 2*time.Second)
 			if err != nil {
 				fmt.Println("peer1 error:", err)
 				return nil, err
 			}
 
-			fmt.Println(responseName)
-
-			/*responseStatus, err := param.LocalPeer.Call(param.RemoteAddress, "", "get_status", nil, time.Second)
+			responseStatus, err := param.LocalPeer.Call(param.RemoteAddress, "", "get_status", nil, time.Second)
 			if err != nil {
 				fmt.Println("peer1 error:", err)
 				return nil, err
-			}*/
+			}
 
-			//response = []byte(string(responseName) + ":" + string(responseStatus))
-			response = []byte("qqq")
+			response = []byte(string(responseName) + ":" + string(responseStatus))
+			//response = []byte("qqq")
 
 		}
 		return
@@ -76,6 +77,9 @@ func Run() {
 		}
 		return
 	})
+
+	logger.Println("peer1", peer1.AddressHex())
+	logger.Println("peer2", peer2.AddressHex())
 
 	response, err := peer2.Call(peer1.Address(), "", "get_name_and_status", nil, 3*time.Second)
 	if err != nil {

@@ -46,8 +46,9 @@ func (c *Peer) getFramesFromRouter(router string) {
 		binary.LittleEndian.PutUint64(getMessageRequest[0:], fromMessageId)
 		binary.LittleEndian.PutUint64(getMessageRequest[8:], 10*1024*1024)
 		copy(getMessageRequest[16:], c.localAddressBS)
-
+		//logger.Println("GETTING .......................", hex.EncodeToString(c.Address())[:8])
 		res, err := c.httpCall(c.httpClientLong, router, "r", getMessageRequest)
+		//logger.Println("GETTING .......................OK", hex.EncodeToString(c.Address())[:8])
 		if err != nil {
 			fmt.Println("HTTP Error: ", err)
 			return
@@ -78,6 +79,7 @@ func (c *Peer) processFramesFromInternet(res []byte, router string) {
 			frameLen := int(binary.LittleEndian.Uint32(res[offset:]))
 			if offset+frameLen <= len(res) {
 				framesCount++
+				//logger.Println("RCV:", utils.TransactionSummary(res[offset:offset+frameLen]))
 				responseFrames := c.processFrame(router, res[offset:offset+frameLen])
 				responses = append(responses, responseFrames...)
 				responsesCount += len(responseFrames)

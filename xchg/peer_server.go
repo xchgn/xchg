@@ -23,11 +23,14 @@
 package xchg
 
 import (
+	"crypto/ed25519"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"log"
 	"time"
 
+	"github.com/ipoluianov/gomisc/logger"
 	"github.com/xchgn/xchg/utils"
 )
 
@@ -35,7 +38,7 @@ const (
 	INTERNAL_ERROR = "#internal_error#"
 )
 
-func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte) (response []byte, dontSendResponse bool) {
+func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte, remoteRealPublicKey ed25519.PublicKey) (response []byte, dontSendResponse bool) {
 
 	var err error
 	// Find the session
@@ -108,7 +111,7 @@ func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte) (response []byt
 			nonce := c.authNonces.Next()
 			resp = nonce[:]
 		case "/xchg-auth":
-			resp, err = c.processAuth(functionParameter)
+			resp, err = c.processAuth(functionParameter, remoteRealPublicKey)
 			if err != nil {
 				if err.Error() == INTERNAL_ERROR {
 					dontSendResponse = true
@@ -127,7 +130,7 @@ func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte) (response []byt
 		p.Function = function
 		p.Parameter = functionParameter
 		p.LocalPeer = c
-		p.RemoteAddress = session.remotePublicKey
+		p.RemoteAddress = session.remoteRealPublicKey
 		resp, err = callFunc(&p)
 	}
 
@@ -148,21 +151,16 @@ func (c *Peer) onEdgeReceivedCall(sessionId uint64, data []byte) (response []byt
 	return
 }
 
-func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error) {
+func (c *Peer) processAuth(functionParameter []byte, remoteRealPublicKey ed25519.PublicKey) (response []byte, err error) {
 	if len(functionParameter) < XchgPublicKeySize {
 		err = errors.New(INTERNAL_ERROR)
 		return
 	}
 
-	remotePublicKeyBS := functionParameter[:XchgPublicKeySize]
-	remotePublicKey := remotePublicKeyBS
+	remoteTransportPublicKeyBS := functionParameter[:XchgPublicKeySize]
+	aesKey, _ := utils.GetSharedKey(c.TransportPrivateKey, remoteTransportPublicKeyBS)
 
 	encryptedAuthFrame := functionParameter[XchgPublicKeySize:]
-
-	aesKey, _ := utils.GetSharedKey(c.TransportPrivateKey, remotePublicKeyBS)
-
-	//fmt.Printf("Auth Server: %x", aesKey)
-
 	parameter, err := utils.DecryptAESGCM(encryptedAuthFrame, aesKey)
 	if err != nil {
 		err = errors.New(INTERNAL_ERROR)
@@ -186,7 +184,7 @@ func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error
 
 	var p Param
 	p.LocalPeer = c
-	p.RemoteAddress = remotePublicKey
+	p.RemoteAddress = remoteRealPublicKey
 	p.AuthData = authData
 	_, err = callbackFunc(&p)
 	if err != nil {
@@ -194,6 +192,8 @@ func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error
 	}
 
 	c.mtx.Lock()
+
+	logger.Println("SESSION REMOTE ADDR:", hex.EncodeToString(remoteRealPublicKey))
 
 	sessionId := c.nextSessionId
 	c.nextSessionId++
@@ -203,7 +203,7 @@ func (c *Peer) processAuth(functionParameter []byte) (response []byte, err error
 	session.aesKey = aesKey
 	session.snakeCounter = NewSnakeCounter(100, 0)
 	session.authData = authData
-	session.remotePublicKey = remotePublicKey
+	session.remoteRealPublicKey = remoteRealPublicKey
 	c.sessionsById[sessionId] = session
 	response = make([]byte, 8)
 	binary.LittleEndian.PutUint64(response, sessionId)

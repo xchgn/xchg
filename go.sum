@@ -12,6 +12,8 @@ github.com/ethereum/go-ethereum v1.14.6 h1:ZTxnErSopkDyxdvB8zW/KcK+/AVrdil/TzoWX
 github.com/ethereum/go-ethereum v1.14.6/go.mod h1:hglUZo/5pVIYXNyYjWzsAUDpT/zI+WbWo/Nih7ot+G0=
 github.com/holiman/uint256 v1.2.4 h1:jUc4Nk8fm9jZabQuqr2JzednajVmBpC+oiTiXZJEApU=
 github.com/holiman/uint256 v1.2.4/go.mod h1:EOMSn4q6Nyt9P6efbI3bueV4e1b3dGlUCXeiRV4ng7E=
+github.com/ipoluianov/gomisc v0.0.20 h1:TBD+YsSnDtGKXWk9ZjNOjLcAxXWrr54THwQPtWIN+PE=
+github.com/ipoluianov/gomisc v0.0.20/go.mod h1:3rlYbwz/L3LSguP2M+Png08EAWoXFxPXJ65uLhweiiU=
 golang.org/x/crypto v0.22.0 h1:g1v0xeRhjcugydODzvb3mEM9SQ0HGp9s/nh3COQ/C30=
 golang.org/x/crypto v0.22.0/go.mod h1:vr6Su+7cTlO45qkww3VDJlzDn0ctJvRgYbC2NvXHt+M=
 golang.org/x/sys v0.20.0 h1:Od9JTbYCk261bKm4M/mw7AklTlFYIa0bIp9BgSm1S8Y=
