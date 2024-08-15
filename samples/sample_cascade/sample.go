@@ -23,7 +23,6 @@
 package samplecascade
 
 import (
-	"encoding/hex"
 	"fmt"
 	"time"
 
@@ -44,7 +43,7 @@ func Run() {
 			return
 		}
 		if param.Function == "get_name_and_status" {
-			logger.Println("nested calling:", hex.EncodeToString(param.RemoteAddress))
+			// logger.Println("nested calling:", hex.EncodeToString(param.RemoteAddress))
 			responseName, err := param.LocalPeer.Call(param.RemoteAddress, "", "get_name", nil, 2*time.Second)
 			if err != nil {
 				fmt.Println("peer1 error:", err)

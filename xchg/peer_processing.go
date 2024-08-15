@@ -110,7 +110,7 @@ func (c *Peer) processFrameCallRequest(routerHost string, frame []byte) (respons
 
 	//generatedLocalCheque := &Cheque{}
 
-	fmt.Println("---", hex.EncodeToString(incomingTransaction.SrcAddress[:]))
+	// fmt.Println("---", hex.EncodeToString(incomingTransaction.SrcAddress[:]))
 
 	resp, dontSendResponse := c.onEdgeReceivedCall(incomingTransaction.SessionId, incomingTransaction.Data, incomingTransaction.SrcAddress[:])
 	if !dontSendResponse {

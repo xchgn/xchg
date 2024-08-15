@@ -25,12 +25,10 @@ package xchg
 import (
 	"crypto/ed25519"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"log"
 	"time"
 
-	"github.com/ipoluianov/gomisc/logger"
 	"github.com/xchgn/xchg/utils"
 )
 
@@ -192,8 +190,6 @@ func (c *Peer) processAuth(functionParameter []byte, remoteRealPublicKey ed25519
 	}
 
 	c.mtx.Lock()
-
-	logger.Println("SESSION REMOTE ADDR:", hex.EncodeToString(remoteRealPublicKey))
 
 	sessionId := c.nextSessionId
 	c.nextSessionId++
