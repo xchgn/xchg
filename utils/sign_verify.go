@@ -22,21 +22,15 @@
 
 package utils
 
-import (
-	"crypto/ecdsa"
-
-	"github.com/ethereum/go-ethereum/crypto"
-)
-
 // SignData signs the given data using the provided private key.
-func SignData(privateKey *ecdsa.PrivateKey, data []byte) ([]byte, error) {
+/*func SignData(privateKey *ecdsa.PrivateKey, data []byte) ([]byte, error) {
 	hash := crypto.Keccak256Hash(data)
 	signature, err := crypto.Sign(hash.Bytes(), privateKey)
 	if err != nil {
 		return nil, err
 	}
 	return signature, nil
-}
+}*/
 
 // VerifySignature verifies the signature of the given data using the provided public key.
 /*func VerifySignature(pubKey *ecdsa.PublicKey, data []byte, signature []byte) bool {

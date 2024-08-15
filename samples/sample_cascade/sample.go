@@ -26,7 +26,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ipoluianov/gomisc/logger"
+	"github.com/xchgn/xchg/logger"
 	"github.com/xchgn/xchg/xchg"
 )
 

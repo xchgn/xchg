@@ -431,7 +431,7 @@ func (c *Router) buildDebugString() {
 	c.lastStatInfo = bsStatSpeed
 	c.mtx.Unlock()
 
-	//logger.Println("stat", string(bsJson))
+	// logger.Println("stat", string(bsJson))
 }
 
 func CheckHash(hash []byte, complexity byte) bool {
