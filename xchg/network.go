@@ -22,8 +22,21 @@
 
 package xchg
 
+import (
+	"encoding/hex"
+	"fmt"
+
+	"github.com/xchgn/xchg/utils"
+)
+
 type Network struct {
 	//routers []*RouterConnection
+}
+
+type RouterInfo struct {
+	Name        string
+	NetAddress  string
+	XchgAddress string
 }
 
 func NewNetwork() *Network {
@@ -35,6 +48,29 @@ func NewNetwork() *Network {
 func (c *Network) init() {
 }
 
-func (c *Network) GetRouterAddr() string {
+func (c *Network) GetRouterAddr(address string) string {
+	fmt.Println("GetRouterAddr for ", address)
+	routers := c.GetRouters()
+	for _, router := range routers {
+		fmt.Println("Router:", router.Name, router.NetAddress, router.XchgAddress)
+	}
 	return "localhost:8084"
+}
+
+func (c *Network) GetRouters() []*RouterInfo {
+	result := make([]*RouterInfo, 0)
+
+	for i := 0; i < 10; i++ {
+		privateKey, _ := utils.GeneratePrivateKey()
+		publicKey := utils.ExtractPublicKey(privateKey)
+		xchgAddress := hex.EncodeToString(publicKey)
+
+		result = append(result, &RouterInfo{
+			Name:        "router" + fmt.Sprint(i),
+			NetAddress:  "localhost:8084",
+			XchgAddress: xchgAddress,
+		})
+	}
+
+	return result
 }

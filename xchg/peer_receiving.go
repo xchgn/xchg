@@ -2,6 +2,7 @@ package xchg
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 )
 
@@ -14,7 +15,7 @@ func (c *Peer) getFramesFromRouters() {
 		return
 	}
 
-	addr := network.GetRouterAddr()
+	addr := network.GetRouterAddr(hex.EncodeToString(c.Address()))
 	c.getFramesFromRouter(addr)
 }
 
@@ -91,9 +92,12 @@ func (c *Peer) processFramesFromInternet(res []byte, router string) {
 			break
 		}
 	}
+
 	if len(responses) > 0 {
 		for _, f := range responses {
-			c.send(f.Marshal())
+			addr := c.network.GetRouterAddr(f.DestAddressString())
+			frame := f.Marshal()
+			go c.httpCall(c.httpClient, addr, "w", frame)
 		}
 	}
 }

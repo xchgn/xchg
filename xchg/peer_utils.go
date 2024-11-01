@@ -50,10 +50,10 @@ func (c *Peer) Post(httpClient *http.Client, url, contentType string, body io.Re
 	return httpClient.Do(req)
 }
 
-func (c *Peer) send(frame []byte) {
+/*func (c *Peer) send(frame []byte) {
 	addr := c.network.GetRouterAddr()
 	go c.httpCall(c.httpClient, addr, "w", frame)
-}
+}*/
 
 func (c *Peer) fixStat() {
 	c.mtx.Lock()

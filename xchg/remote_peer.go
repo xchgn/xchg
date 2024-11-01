@@ -27,6 +27,7 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -172,7 +173,7 @@ func (c *RemotePeer) Call(network *Network, function string, data []byte, timeou
 		copy(transaction.Comment[:], []byte("GET_KEY"))
 
 		//copy(transaction.Data, addressBS)
-		addr := network.GetRouterAddr()
+		addr := network.GetRouterAddr(hex.EncodeToString(c.remoteAddress))
 		c.httpCall(addr, "w", transaction.Marshal())
 
 		// Wait for public key for 1 second
@@ -575,7 +576,7 @@ func (c *RemotePeer) Post(url, contentType string, body io.Reader, host string) 
 }
 
 func (c *RemotePeer) Send(network *Network, tr *Transaction) (err error) {
-	addr := network.GetRouterAddr()
+	addr := network.GetRouterAddr(tr.DestAddressString())
 	bs := tr.Marshal()
 	c.httpCall(addr, "w", bs)
 	return
