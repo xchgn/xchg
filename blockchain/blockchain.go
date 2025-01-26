@@ -101,6 +101,7 @@ type RouterObject struct {
 	XchgAddr         string
 	Owner            string
 	TotalStakeAmount uint64
+	ChequeIds        []string
 }
 
 func (c *Blockchain) GetRouterObject(routerXchgAddress string) (*RouterObject, error) {
@@ -142,6 +143,7 @@ func (c *Blockchain) GetRouterObject(routerXchgAddress string) (*RouterObject, e
 	routerObject.XchgAddr = "---"
 	routerObject.Owner = routerObjStr.Fields.Value.Fields.Owner
 	routerObject.TotalStakeAmount = stake
+	routerObject.ChequeIds = routerObjStr.Fields.Value.Fields.ChequeIds.Fields.Contents
 
 	fmt.Println("Router object:")
 	fmt.Println("Name:", routerObject.Name)

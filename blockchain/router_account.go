@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"crypto/ed25519"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -63,6 +64,47 @@ func (c *RouterAccount) GenerateCheques() {
 	res, err := c.suiClient.ExecMoveCall(p, 1000)
 	if err != nil {
 		fmt.Println("ERROR:", err)
+		return
+	}
+	fmt.Println("RESULT:", res)
+}
+
+type Item struct {
+	ChequeId []byte
+	AppId    []byte
+}
+
+func (c *RouterAccount) ApplyChecques(items []Item) {
+	// public fun apply_cheque(f: &mut Fund, pk: vector<u8>,  msg: vector<u8>, sig: vector<u8>, clock: &Clock, _ctx: &mut TxContext) {
+
+	tb := client.NewTransactionBuilder(c.suiClient)
+	for _, item := range items {
+		pk := make([]byte, 32)
+		copy(pk, c.xchgPublicKey)
+		msg := make([]byte, 104)
+		copy(msg, item.ChequeId)
+		copy(msg[32:], c.xchgPublicKey)
+		copy(msg[64:64+32], item.AppId)
+		binary.LittleEndian.PutUint64(msg[96:], 1)
+
+		sig := ed25519.Sign(c.xchgPrivateKey, msg)
+
+		cmd := client.NewTransactionBuilderMoveCall()
+		cmd.PackageId = PACKAGE_ID
+		cmd.ModuleName = "fund"
+		cmd.FunctionName = "apply_cheque"
+		cmd.Arguments = []interface{}{
+			client.ArgSharedObject(FUND_OBJECT_ID),
+			client.ArgVecU8(pk),
+			client.ArgVecU8(msg),
+			client.ArgVecU8(sig),
+			client.ArgSharedObject(client.CLOCK_OBJECT_ID),
+		}
+		tb.AddCommand(cmd)
+	}
+	res, err := c.suiClient.ExecPTB(tb, client.DEFAULT_GAS_PRICE)
+	if err != nil {
+		fmt.Println("Error:", err)
 		return
 	}
 	fmt.Println("RESULT:", res)
