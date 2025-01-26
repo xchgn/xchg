@@ -7,6 +7,6 @@ toolchain go1.23.5
 require golang.org/x/crypto v0.32.0
 
 require (
-	github.com/xchgn/suigo v0.0.2
+	github.com/xchgn/suigo v0.0.3
 	golang.org/x/sys v0.29.0 // indirect
 )
