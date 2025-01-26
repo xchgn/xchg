@@ -8,6 +8,11 @@ import (
 
 func main() {
 	ra := blockchain.NewRouterAccount()
-	addr := ra.SuiClient().Account().Address
-	fmt.Println("Xchg address:", addr)
+	_, err := ra.FetchRouterObject()
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	//ra.GenerateCheques()
+	//fmt.Println("Xchg address:", addr)
 }
